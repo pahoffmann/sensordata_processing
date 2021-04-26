@@ -1,3 +1,0 @@
-/home/patrick/UniOs/Master/3D/Uebung/u1/build/CMakeFiles/rebuild_cache.dir
-/home/patrick/UniOs/Master/3D/Uebung/u1/build/CMakeFiles/edit_cache.dir
-/home/patrick/UniOs/Master/3D/Uebung/u1/build/CMakeFiles/Calibration.dir

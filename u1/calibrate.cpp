@@ -45,16 +45,16 @@ void calibrateUsingWebcam()
         found = cv::findChessboardCorners(gray_img, cv::Size(numCornersHor, numCornersVer), point_buf, chessBoardFlags);
         if(found)
         {
-             std::cout << "Found chessboard!" << std::endl;
+            std::cout << "Found chessboard!" << std::endl;
 
-             // criteria used for refinement
-             cv::TermCriteria criteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 30, 0.001);
+            // criteria used for refinement
+            cv::TermCriteria criteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 30, 0.001);
             
             //refine corners
-             cv::cornerSubPix(gray_img, point_buf, cv::Size(11,11), cv::Size(-1,-1),criteria);
+            cv::cornerSubPix(gray_img, point_buf, cv::Size(11,11), cv::Size(-1,-1),criteria);
 
             //draw them on the image
-             cv::drawChessboardCorners(frame, cv::Size(numCornersHor, numCornersVer), point_buf, found);
+            cv::drawChessboardCorners(frame, cv::Size(numCornersHor, numCornersVer), point_buf, found);
         }
 
         // show the image on the window, in color
@@ -70,9 +70,21 @@ void calibrateUsingWebcam()
 
 void calibrateUsingImages(std::string folder_path)
 {
-    std::cout << "Starting to calibrate using images" << std::endl;
+    // Creating vector to store vectors of 3D points for each checkerboard image
+    std::vector<std::vector<cv::Point3f> > objpoints;
 
-    folder_path += "/*.png";
+    // Creating vector to store vectors of 2D points for each checkerboard image
+    std::vector<std::vector<cv::Point2f> > imgpoints;
+
+    // Defining the world coordinates for 3D points
+    std::vector<cv::Point3f> objp;
+    for(int i{0}; i < numCornersHor; i++)
+    {
+        for(int j{0}; j < numCornersVer; j++)
+            objp.push_back(cv::Point3f(j,i,0));
+    }
+
+    std::cout << "Starting to calibrate using images" << std::endl;
 
     std::cout << "Path: " << folder_path << std::endl;
     std::vector<cv::String> images;
@@ -111,24 +123,39 @@ void calibrateUsingImages(std::string folder_path)
 
             //draw them on the image
              cv::drawChessboardCorners(frame, cv::Size(numCornersHor, numCornersVer), point_buf, found);
+
+            objpoints.push_back(objp);
+	        imgpoints.push_back(point_buf);
         }
 
         // show the image on the window, in color
         cv::imshow("Images", frame);
         cv::waitKey(2000);
-    }   
+    }
 
+    cv::destroyAllWindows();
+
+    cv::Mat cameraMatrix, distCoeffs, R, T;
+
+    cv::calibrateCamera(objpoints, imgpoints, cv::Size(gray_img.rows,gray_img.cols), cameraMatrix, distCoeffs, R, T);
+
+    std::cout << "cameraMatrix : " << cameraMatrix << std::endl;
+	std::cout << "distCoeffs : " << distCoeffs << std::endl;
+	std::cout << "Rotation vector : " << R << std::endl;
+	std::cout << "Translation vector : " << T << std::endl;
 }
 
 
 int main(int argc, char** argv) {
-
-
-    std::string location_;
+    
+    std::string location_ = "";
     MODE mode_;
 
-    std:: cout << "Enter location of the files, type 'cam' to use the webcam instead." << std::endl;
-    std::getline(std::cin, location_);
+    // std:: cout << "Enter location of the files, type 'cam' to use the webcam instead." << std::endl;
+    // std::getline(std::cin, location_);
+
+    if(argc == 2)
+        location_ = argv[1];
 
     // check, wether an empty string was put into the program, if so: use webcam feed
     if(location_ == "cam")

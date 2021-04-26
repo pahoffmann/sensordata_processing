@@ -77,7 +77,15 @@ void calibrateUsingImages(std::string folder_path)
     std::cout << "Path: " << folder_path << std::endl;
     std::vector<cv::String> images;
 
-    cv::glob(folder_path, images);
+    try
+    {
+            cv::glob(folder_path, images);
+    }
+    catch (cv::Exception)
+    {
+        std::cout << "No images found in the specified location" << std::endl;
+        return;
+    }
 
     // create a window to display the images from the webcam
     cv::namedWindow("Images");

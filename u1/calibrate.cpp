@@ -39,7 +39,6 @@ void calibrateUsingWebcam()
 
     // display the frame until you press a key
     while (1) {
-
         // capture the next frame from the webcam
         camera >> frame;
         cv::cvtColor(frame, gray_img, cv::COLOR_RGB2GRAY);
@@ -72,6 +71,45 @@ void calibrateUsingWebcam()
 void calibrateUsingImages(std::string folder_path)
 {
     std::cout << "Starting to calibrate using images" << std::endl;
+
+    folder_path += "/*.png";
+
+    std::cout << "Path: " << folder_path << std::endl;
+    std::vector<cv::String> images;
+
+    cv::glob(folder_path, images);
+
+    // create a window to display the images from the webcam
+    cv::namedWindow("Images");
+    cv::Mat frame, gray_img;
+    std::vector<cv::Point2f> point_buf;
+    bool found;
+    int chessBoardFlags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE | cv::CALIB_CB_FAST_CHECK;
+
+    for(int i = 0; i < images.size(); i++)
+    {
+        frame = cv::imread(images[i]);
+        cv::cvtColor(frame, gray_img, cv::COLOR_RGB2GRAY);
+        found = cv::findChessboardCorners(gray_img, cv::Size(numCornersHor, numCornersVer), point_buf, chessBoardFlags);
+        if(found)
+        {
+             std::cout << "Found chessboard!" << std::endl;
+
+             // criteria used for refinement
+             cv::TermCriteria criteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 30, 0.001);
+            
+            //refine corners
+             cv::cornerSubPix(gray_img, point_buf, cv::Size(11,11), cv::Size(-1,-1),criteria);
+
+            //draw them on the image
+             cv::drawChessboardCorners(frame, cv::Size(numCornersHor, numCornersVer), point_buf, found);
+        }
+
+        // show the image on the window, in color
+        cv::imshow("Images", frame);
+        cv::waitKey(2000);
+    }   
+
 }
 
 

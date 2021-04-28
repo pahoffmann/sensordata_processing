@@ -5,11 +5,6 @@
 #include "iostream"
 #include <numeric>
 
-enum MODE {
-   FOLDERINPUT,
-   WEBCAMINPUT 
-};
-
 // definitions for the chessboard
 int _num_corners_hor = 9;
 int _num_corners_vert = 6;
@@ -25,10 +20,11 @@ float _vert_offset_r = 1.2f;
 
 
 
-
+// intrinsics read from yaml
 cv::Mat _camera_mat;
 cv::Mat _dist_coeffs;
 
+// rotation and translation matrix
 cv::Mat _R;
 cv::Mat _T;
 
@@ -215,6 +211,7 @@ void calculateExtrinsics()
         point_buf.insert(point_buf.end(), point_buf2.begin(), point_buf2.end());
     }
 
+    // calculate extrinsics based on the incoming intrinsics
     cv::solvePnP(objp, point_buf, _camera_mat, _dist_coeffs, _R, _T);
     cv::destroyAllWindows();
 }

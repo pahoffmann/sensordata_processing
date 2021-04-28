@@ -145,7 +145,7 @@ void calculateExtrinsics()
         if(found)
         {
 
-            std::cout << "Found chessboard!" << std::endl;
+            //std::cout << "Found chessboard!" << std::endl;
 
             // criteria used for refinement
             cv::TermCriteria criteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 30, 0.001);
@@ -177,14 +177,14 @@ void calculateExtrinsics()
         // show the image on the window, in color
         cv::imshow("Webcam", frame);
 
-        // wait (10ms) for a key to be pressed
         if(found){
             found_counter++;
             cv::waitKey(3000);
         }
     }
 
-    //check which points belong left and which right
+    // check which points belong left and which right by calculating mean points
+    // as the points of the left board will have a smaller mean x than the right 
     cv::Point2f sum1 = std::accumulate(
         point_buf1.begin(), point_buf1.end(), // Run from begin to end
         cv::Point2f(0.0f,0.0f),       // Initialize with a zero point
@@ -199,7 +199,7 @@ void calculateExtrinsics()
     );
     cv::Point2f mean2 = sum2 / (int)point_buf2.size(); // Divide by count to get mean
 
-    std::cout << "Mean1: " << mean1 << "| Mean 2: " << mean2 << std::endl;
+    //std::cout << "Mean1: " << mean1 << "| Mean 2: " << mean2 << std::endl;
     //reserve mem
     point_buf.reserve(point_buf1.size() + point_buf2.size());
 

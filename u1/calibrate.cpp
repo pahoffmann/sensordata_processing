@@ -20,6 +20,19 @@ void calibrateUsingWebcam()
     bool found;
     int chessBoardFlags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE | cv::CALIB_CB_FAST_CHECK;
 
+    // Creating vector to store vectors of 3D points for each checkerboard image
+    std::vector<std::vector<cv::Point3f> > objpoints;
+
+    // Creating vector to store vectors of 2D points for each checkerboard image
+    std::vector<std::vector<cv::Point2f> > imgpoints;
+
+    // Defining the world coordinates for 3D points
+    std::vector<cv::Point3f> objp;
+    for(int i{0}; i < numCornersHor; i++)
+    {
+        for(int j{0}; j < numCornersVer; j++)
+            objp.push_back(cv::Point3f(j,i,0));
+    }
 
     // open the first webcam plugged in the computer
     cv::VideoCapture camera(0);
@@ -33,14 +46,13 @@ void calibrateUsingWebcam()
     cv::namedWindow("Webcam");
 
     // this will contain the image from the webcam
-    cv::Mat frame, gray_img;
-        
-
+    cv::Mat frame, gray_img, calib;
 
     // display the frame until you press a key
     while (1) {
         // capture the next frame from the webcam
         camera >> frame;
+        
         cv::cvtColor(frame, gray_img, cv::COLOR_RGB2GRAY);
         found = cv::findChessboardCorners(gray_img, cv::Size(numCornersHor, numCornersVer), point_buf, chessBoardFlags);
         if(found)
@@ -55,17 +67,59 @@ void calibrateUsingWebcam()
 
             //draw them on the image
             cv::drawChessboardCorners(frame, cv::Size(numCornersHor, numCornersVer), point_buf, found);
+
+            objpoints.push_back(objp);
+            imgpoints.push_back(point_buf);
         }
 
         // show the image on the window, in color
         cv::imshow("Webcam", frame);
-        camera >> frame;
+
         // wait (10ms) for a key to be pressed
-        if (cv::waitKey(10) >= 0)
+        if (cv::waitKey(300) >= 0)
+        {
             break;
+        }
     }
 
     // use found points for calibration
+    cv::destroyAllWindows();
+
+    cv::Mat cameraMatrix, distCoeffs, R, T;
+
+
+    double reprojectionError = cv::calibrateCamera(objpoints, imgpoints, cv::Size(gray_img.rows,gray_img.cols), cameraMatrix, distCoeffs, R, T);
+
+    std::cout << "cameraMatrix : " << cameraMatrix << std::endl;
+	std::cout << "distCoeffs : " << distCoeffs << std::endl;
+	std::cout << "Rotation vector : " << R << std::endl;
+	std::cout << "Translation vector : " << T << std::endl;
+    std::cout << "Reprojection Error: " << reprojectionError << std::endl;
+
+    cv::namedWindow("Calibrated");
+    
+    while(1)
+    {
+        camera >> frame;
+        cv::undistort(frame, calib, cameraMatrix, distCoeffs);
+        cv::flip(calib, calib, 1); //flip to make easier usability possible
+        cv::imshow("Calibrated", calib);
+        if (cv::waitKey(10) >= 0)
+        {
+            break;
+        }
+    }
+
+    /* save camera params */
+    cv::FileStorage fs("intrinsicParams.yaml", cv::FileStorage::WRITE);
+
+    if (!R.empty())
+        fs << "nr_of_framnes" << R.size();
+    fs << "camera_matrix" << cameraMatrix;
+    fs << "distortion_coefficients" << distCoeffs;
+    fs << "rpe" << reprojectionError;
+
+    
 }
 
 void calibrateUsingImages(std::string folder_path)
@@ -137,12 +191,22 @@ void calibrateUsingImages(std::string folder_path)
 
     cv::Mat cameraMatrix, distCoeffs, R, T;
 
-    cv::calibrateCamera(objpoints, imgpoints, cv::Size(gray_img.rows,gray_img.cols), cameraMatrix, distCoeffs, R, T);
+    double reprojectionError = cv::calibrateCamera(objpoints, imgpoints, cv::Size(gray_img.rows,gray_img.cols), cameraMatrix, distCoeffs, R, T);
 
     std::cout << "cameraMatrix : " << cameraMatrix << std::endl;
 	std::cout << "distCoeffs : " << distCoeffs << std::endl;
 	std::cout << "Rotation vector : " << R << std::endl;
 	std::cout << "Translation vector : " << T << std::endl;
+    std::cout << "Reprojection error: " << reprojectionError << std::endl;
+
+        /* save camera params */
+    cv::FileStorage fs("intrinsicParams.yaml", cv::FileStorage::WRITE);
+
+    if (!R.empty())
+        fs << "nr_of_framnes" << R.size();
+    fs << "camera_matrix" << cameraMatrix;
+    fs << "distortion_coefficients" << distCoeffs;
+    fs << "rpe" << reprojectionError;
 }
 
 
@@ -158,7 +222,7 @@ int main(int argc, char** argv) {
         location_ = argv[1];
 
     // check, wether an empty string was put into the program, if so: use webcam feed
-    if(location_ == "cam")
+    if(location_ == "")
     {
         mode_ = WEBCAMINPUT;
         std::cout << "Using webcam as input!"  << std::endl;

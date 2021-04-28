@@ -28,9 +28,9 @@ void calibrateUsingWebcam()
 
     // Defining the world coordinates for 3D points
     std::vector<cv::Point3f> objp;
-    for(int i{0}; i < numCornersHor; i++)
+    for(int i{0}; i < numCornersVer; i++)
     {
-        for(int j{0}; j < numCornersVer; j++)
+        for(int j{0}; j < numCornersHor; j++)
             objp.push_back(cv::Point3f(j,i,0));
     }
 

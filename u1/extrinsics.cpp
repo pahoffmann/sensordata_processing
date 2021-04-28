@@ -26,6 +26,10 @@ cv::Mat _T;
 //points of the board in its world coordinates
 std::vector<cv::Point3f> objp;
 
+/**
+ * @brief initializes a 3d representation of the chessboard corners
+ * 
+ */
 void initializeWorldPoints()
 {
     //define the world coords of my schachbrett alla -> using one schachbrett alla
@@ -33,14 +37,19 @@ void initializeWorldPoints()
     {
         for(int j = 1 ; j <= _num_corners_hor; j++)
         {
-            float coord_x = i * _size_of_square + _hor_offset;
-            float coord_z = j * _size_of_square + _vert_offset;
-            float coord_y = 0;
+            float coord_x = j * _size_of_square + _hor_offset;
+            float coord_y = i * _size_of_square + _vert_offset;
+            float coord_z = 0;
             objp.push_back(cv::Point3f(coord_x, coord_y, coord_z));
         }
     }
 }
 
+/**
+ * @brief reads the intrisics, which have been written to a yaml file.
+ * 
+ * @return int 
+ */
 int initializeIntrinsicsFromYAML()
 {
     //todo: read yaml stuff
@@ -63,6 +72,10 @@ int initializeIntrinsicsFromYAML()
     return 0;
 }
 
+/**
+ * @brief actual calculation of the extrinsics.
+ * 
+ */
 void calculateExtrinsics()
 {
     // open the first webcam plugged in the computer
@@ -114,15 +127,73 @@ void calculateExtrinsics()
     }
 
     cv::solvePnP(objp, point_buf, _camera_mat, _dist_coeffs, _R, _T);
+    cv::destroyAllWindows();
 }
 
+void showUndistortedImageLoop()
+{
+      // open the first webcam plugged in the computer
+    cv::VideoCapture camera(0);
+
+    if (!camera.isOpened()) {
+        std::cerr << "ERROR: Could not open camera" << std::endl;
+        return;
+    }
+    // create a window to display the images from the webcam
+    cv::namedWindow("Webcam");
+
+    // this will contain the image from the webcam
+    cv::Mat frame, tmp;
+    bool show_undistorted = false;
+    
+    // display the frame until you press a key
+    while (1) {
+        // capture the next frame from the webcam
+        camera >> frame;
+        
+        if(show_undistorted)
+        {
+            cv::undistort(frame, tmp, _camera_mat, _dist_coeffs);
+            cv::imshow("Webcam", tmp);
+        }
+        // show the image on the window, in color
+        else
+        {
+            cv::drawFrameAxes(frame, _camera_mat, _dist_coeffs, _R, _T, 10);
+            cv::imshow("Webcam", frame);
+
+        }
+
+        char key = (char)cv::waitKey(10);
+        if (key == 27)
+        {
+            break;
+        }
+        else if(key >= 0)
+        {
+            show_undistorted = !show_undistorted;
+        }
+    }
+}
+
+/**
+ * @brief Prints the calculated extrinsics
+ * 
+ */
 void printExtrinsics()
 {
     std::cout << "Rotation: " << std::endl << _R << std::endl;
     std::cout << "Translation: " << std::endl << _T << std::endl;
 }
 
-
+/**
+ * @brief Main method of the program, calls the necessary functions
+ *          to calculate the extrinsics of a camera
+ * 
+ * @param argc 
+ * @param argv 
+ * @return int 
+ */
 int main(int argc, char **argv)
 {
     initializeWorldPoints();
@@ -133,5 +204,8 @@ int main(int argc, char **argv)
     }
     calculateExtrinsics();
     printExtrinsics();
+    showUndistortedImageLoop();
+
+    return EXIT_SUCCESS;
 }
 

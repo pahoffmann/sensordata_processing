@@ -153,16 +153,8 @@ int calcCenterLine(std::vector<cv::Vec2f>& in_lines, cv::Vec4i& out_line1, cv::V
         return 1;
     }
 
-
-    std::cout << "In lines size: " << in_lines.size() << std::endl;
-    std::cout << avg_1 << " | Counter: " << counter_l << std::endl;
-    std::cout << avg_2 << " | Counter: " << counter_r << std::endl;
-
     avg_1 /= counter_l;
     avg_2 /= counter_r;
-
-    std::cout << avg_1 << " | Counter: " << counter_l << std::endl;
-    std::cout << avg_2 << " | Counter: " << counter_r << std::endl;
     
     float rho1 = avg_1[0], theta1 = avg_1[1], rho2 = avg_2[0], theta2 = avg_2[1];
     double a1 = cos(theta1), b1 = sin(theta1), a2 = cos(theta2), b2 = sin(theta2);
@@ -194,6 +186,16 @@ int calcCenterLine(std::vector<cv::Vec2f>& in_lines, cv::Vec4i& out_line1, cv::V
     return 0;
 }
 
+/**
+ * @brief calculates the intersection between the two lines and draws it onto the frame
+ * 
+ * @param line_1 
+ * @param line_2 
+ */
+void calcAndDisplayIntersection(cv::Vec4i line_1, cv::Vec4i line_2, cv::Mat& frame)
+{
+
+}
 
 /**
  * @brief finds lines alla
@@ -259,15 +261,17 @@ void findLines()
         int status = calcCenterLine(lines, avg_line1, avg_line2);
         
         // doesnt work
-        if(status == 0)
+        if(status == 1)
         {
-            std::cout << "found a line alla" << std::endl;
-            std::cout << avg_line1 << " ist ein döner" << std::endl;
-            std::cout << avg_line2 << " ist ein döner" << std::endl;
-            cv::line(frame, cv::Point(avg_line1[0],avg_line1[1]), cv::Point(avg_line1[2], avg_line1[3]), cv::Scalar(255,0,0), 3, cv::LINE_AA);
-            cv::line(frame, cv::Point(avg_line2[0],avg_line2[1]), cv::Point(avg_line2[2], avg_line2[3]), cv::Scalar(0,0,255), 3, cv::LINE_AA);
+            cv::imshow("Webcam", frame);
+            cv::waitKey(10);
+            continue;
         }
 
+        cv::line(frame, cv::Point(avg_line1[0],avg_line1[1]), cv::Point(avg_line1[2], avg_line1[3]), cv::Scalar(255,0,0), 3, cv::LINE_AA);
+        cv::line(frame, cv::Point(avg_line2[0],avg_line2[1]), cv::Point(avg_line2[2], avg_line2[3]), cv::Scalar(0,0,255), 3, cv::LINE_AA);
+        
+        calcAndDisplayIntersection(avg_line1, avg_line2, frame);
 
         cv::imshow("Webcam", frame);
         cv::waitKey(10);

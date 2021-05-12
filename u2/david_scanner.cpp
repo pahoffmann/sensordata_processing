@@ -72,7 +72,7 @@ int readCameraParameters()
  * @param out_line2  second avg line
  * @return int status, if the operation was successful
  */
-int calcCenterLine(std::vector<cv::Vec2f> &in_lines, cv::Vec4i& out_line1, cv::Vec4i& out_line2)
+int calcCenterLine(std::vector<cv::Vec2f>& in_lines, cv::Vec4i& out_line1, cv::Vec4i& out_line2)
 {
     if(in_lines.size() < 2)
     {
@@ -92,7 +92,7 @@ int calcCenterLine(std::vector<cv::Vec2f> &in_lines, cv::Vec4i& out_line1, cv::V
         if(avg_1[0] == 0 && avg_2[0] == 0 ) // first line
         {
             avg_1[0] += rho;
-            avg_1[0] += theta;
+            avg_1[1] += theta;
             counter_l += 1;
         }
         else if(avg_1[0] == 0 && avg_2[0] != 0) // one already filled
@@ -264,7 +264,7 @@ void findLines()
             std::cout << "found a line alla" << std::endl;
             std::cout << avg_line1 << " ist ein döner" << std::endl;
             std::cout << avg_line2 << " ist ein döner" << std::endl;
-            cv::line(frame, cv::Point(avg_line1[0],avg_line1[1]), cv::Point(avg_line1[2], avg_line1[3]), cv::Scalar(0,0,255), 3, cv::LINE_AA);
+            cv::line(frame, cv::Point(avg_line1[0],avg_line1[1]), cv::Point(avg_line1[2], avg_line1[3]), cv::Scalar(255,0,0), 3, cv::LINE_AA);
             cv::line(frame, cv::Point(avg_line2[0],avg_line2[1]), cv::Point(avg_line2[2], avg_line2[3]), cv::Scalar(0,0,255), 3, cv::LINE_AA);
         }
 

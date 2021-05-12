@@ -192,9 +192,26 @@ int calcCenterLine(std::vector<cv::Vec2f>& in_lines, cv::Vec4i& out_line1, cv::V
  * @param line_1 
  * @param line_2 
  */
-void calcAndDisplayIntersection(cv::Vec4i line_1, cv::Vec4i line_2, cv::Mat& frame)
+bool calcAndDisplayIntersection(cv::Vec4i line_1, cv::Vec4i line_2, cv::Mat& frame)
 {
+    cv::Point2f o1(line_1[0], line_1[1]);
+    cv::Point2f o2(line_2[0], line_2[1]);
 
+    cv::Point2f p1(line_1[2], line_1[3]);
+    cv::Point2f p2(line_2[2], line_2[3]);
+
+    cv::Point2f x = o2 - o1;
+    cv::Point2f d1 = p1 - o1;
+    cv::Point2f d2 = p2 - o2;
+
+    float cross = d1.x*d2.y - d1.y*d2.x;
+    if (abs(cross) < /*EPS*/1e-8)
+        return false;
+
+    double t1 = (x.x * d2.y - x.y * d2.x)/cross;
+    cv::Point2f r = o1 + d1 * t1;
+
+    cv::circle(frame, r, 4, cv::Scalar(255,0,255), 3);
 }
 
 /**
@@ -273,8 +290,10 @@ void findLines()
         
         calcAndDisplayIntersection(avg_line1, avg_line2, frame);
 
+
         cv::imshow("Webcam", frame);
         cv::waitKey(10);
+
     }
     
 } 

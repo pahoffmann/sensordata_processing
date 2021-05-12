@@ -18,10 +18,21 @@ cv::Vec4i _right;
 
 // red spectrum
 
-cv::Scalar _low_red_l(175, 70, 170);
+cv::Scalar _low_red_l(175, 70, 160);
 cv::Scalar _high_red_l(180, 255, 255);
-cv::Scalar _low_red_r(0, 70, 170);
+cv::Scalar _low_red_r(0, 70, 160);
 cv::Scalar _high_red_r(5, 255, 255);
+
+
+// futher params
+
+// maximum angle variance
+int _max_angle_var = 5;
+int _max_dist_var = 20;
+
+// camera resolution
+int _image_width = 640;
+int _image_height = 480;
 
 /**
  * @brief reads camera parameters from the extrinsics yaml
@@ -53,6 +64,78 @@ int readCameraParameters()
     return 0;
 }
 
+/**
+ * @brief Goes through the lines detected by the hough transform and returns the average lines for each direction
+ * 
+ * @param in_lines lines found by the hough transform
+ * @param out_line1  first avg line
+ * @param out_line2  second avg line
+ * @return int status, if the operation was successful
+ */
+int calcCenterLine(std::vector<cv::Vec2f> &in_lines, cv::Vec4i out_line1, cv::Vec4i out_line2)
+{
+    if(in_lines.size() < 2)
+    {
+        return 1;
+    }
+
+    int counter_l = 0;
+    int counter_r = 0;
+
+    cv::Vec2f avg_1(0,0);
+    cv::Vec2f avg_2(0,0);
+
+    for(auto& line : in_lines)
+    {
+        float rho = line[0], theta = line[1];
+        
+        if(avg_1[0] == 0 && avg_2[0] == 0 )
+        {
+            avg_1[0] += rho;
+            avg_1[0] += theta;
+            counter_l += 1;
+        }
+        else if(avg_1[0] == 0 && avg_2[0] != 0) // one already filled
+        {
+            // if the lines matches the other one
+            if(cv::abs(avg_2[0] / counter_r  -  rho) <= _max_dist_var && cv::abs(avg_2[1] / counter_r  -  theta) <= _max_angle_var)
+            {
+                avg_2[0] += rho;
+                avg_2[1] += theta;
+                counter_r++;
+            }
+            else
+            {
+                avg_1[0] += rho;
+                avg_1[1] += theta;
+                counter_l++;
+            }
+
+        }
+        else if(avg_2[0] == 0 && avg_1[0] != 0)
+        {
+            
+        }
+        else{
+
+        }
+    }
+
+    
+
+    double a = cos(theta), b = sin(theta);
+    double x0 = a*rho, y0 = b*rho;
+    pt1.x = cvRound(x0 + 1000*(-b));
+    pt1.y = cvRound(y0 + 1000*(a));
+    pt2.x = cvRound(x0 - 1000*(-b));
+    pt2.y = cvRound(y0 - 1000*(a));
+    cv::Point pt1, pt2;
+
+
+    cv::Vec4i vec(pt1.x, pt1.y, pt2.x, pt2.y);
+
+}
+
 void findLines()
 {
     cv::VideoCapture camera(0);
@@ -61,12 +144,15 @@ void findLines()
     cv::namedWindow("Mask");
     cv::namedWindow("Canny");
     cv::namedWindow("Hough");
-    std::vector<cv::Vec4i> linesP;
     std::vector<cv::Vec2f> lines;
+    std::vector<cv::Vec4i> pix_lines;
+    cv::Vec4i avg_line1;
+    cv::Vec4i avg_line2;
 
     while(true)
     {
         camera >> frame;
+        //std::cout << "Cols: " << frame.cols << " Rows: " << frame.rows << std::endl;
 
         // convert to hsv
 
@@ -83,11 +169,13 @@ void findLines()
         cv::Canny(mask, canny, 50, 200, 3); // use canny to detect edges alla
 
         cv::imshow("Canny", canny);
-        cv::HoughLines(canny, lines, 1, CV_PI / 180, 70, 0, 0);
 
+        //applying houghlines operation on the canny image
+        cv::HoughLines(canny, lines, 1, CV_PI / 180, 70, 0, 0);
+        
+        //for each line, which exceeds the threshold, calc endpoints
         for( size_t i = 0; i < lines.size(); i++ )
         {
-            std::cout << "line" << std::endl;
             float rho = lines[i][0], theta = lines[i][1];
             cv::Point pt1, pt2;
             double a = cos(theta), b = sin(theta);
@@ -96,8 +184,16 @@ void findLines()
             pt1.y = cvRound(y0 + 1000*(a));
             pt2.x = cvRound(x0 - 1000*(-b));
             pt2.y = cvRound(y0 - 1000*(a));
-            line(frame, pt1, pt2, cv::Scalar(0,0,255), 3, cv::LINE_AA);
+
+            //std::cout << "X1 " << pt1.x << "Y1 " << pt1.y <<"X2 " << pt2.x <<"Y2 " << pt2.y << std::endl;
+            
+            cv::line(frame, pt1, pt2, cv::Scalar(0,0,255), 3, cv::LINE_AA);
+            //cv::Vec4i vec(pt1.x, pt1.y, pt2.x, pt2.y);
+            //pix_lines.push_back(vec);
         }
+
+
+        calcCenterLine(lines, avg_line1, avg_line2);
 
         cv::imshow("Webcam", frame);
         cv::waitKey(10);

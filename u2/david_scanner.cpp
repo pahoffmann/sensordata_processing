@@ -18,9 +18,9 @@ cv::Vec4i _right;
 
 // red spectrum
 
-cv::Scalar _low_red_l(175, 70, 160);
+cv::Scalar _low_red_l(175, 70, 165);
 cv::Scalar _high_red_l(180, 255, 255);
-cv::Scalar _low_red_r(0, 70, 160);
+cv::Scalar _low_red_r(0, 70, 165);
 cv::Scalar _high_red_r(5, 255, 255);
 
 
@@ -72,7 +72,7 @@ int readCameraParameters()
  * @param out_line2  second avg line
  * @return int status, if the operation was successful
  */
-int calcCenterLine(std::vector<cv::Vec2f> &in_lines, cv::Vec4i out_line1, cv::Vec4i out_line2)
+int calcCenterLine(std::vector<cv::Vec2f> &in_lines, cv::Vec4i& out_line1, cv::Vec4i& out_line2)
 {
     if(in_lines.size() < 2)
     {
@@ -89,7 +89,7 @@ int calcCenterLine(std::vector<cv::Vec2f> &in_lines, cv::Vec4i out_line1, cv::Ve
     {
         float rho = line[0], theta = line[1];
         
-        if(avg_1[0] == 0 && avg_2[0] == 0 )
+        if(avg_1[0] == 0 && avg_2[0] == 0 ) // first line
         {
             avg_1[0] += rho;
             avg_1[0] += theta;
@@ -114,28 +114,91 @@ int calcCenterLine(std::vector<cv::Vec2f> &in_lines, cv::Vec4i out_line1, cv::Ve
         }
         else if(avg_2[0] == 0 && avg_1[0] != 0)
         {
-            
+             // if the lines matches the first one
+            if(cv::abs(avg_1[0] / counter_l  -  rho) <= _max_dist_var && cv::abs(avg_1[1] / counter_l  -  theta) <= _max_angle_var)
+            {
+                avg_1[0] += rho;
+                avg_1[1] += theta;
+                counter_l++;
+            }
+            else
+            {
+                avg_2[0] += rho;
+                avg_2[1] += theta;
+                counter_r++;
+            }
         }
         else{
-
+            
+            // check if the line matches either the right or the left line
+            if(cv::abs(avg_1[0] / counter_l  -  rho) <= _max_dist_var && cv::abs(avg_1[1] / counter_l  -  theta) <= _max_angle_var)
+            {
+                avg_1[0] += rho;
+                avg_1[1] += theta;
+                counter_l++;
+            }
+            else if (cv::abs(avg_2[0] / counter_r  -  rho) <= _max_dist_var && cv::abs(avg_2[1] / counter_r  -  theta) <= _max_angle_var)
+            {
+                avg_2[0] += rho;
+                avg_2[1] += theta;
+                counter_r++;
+            }
+            else continue; // skip line
         }
     }
-
     
-
-    double a = cos(theta), b = sin(theta);
-    double x0 = a*rho, y0 = b*rho;
-    pt1.x = cvRound(x0 + 1000*(-b));
-    pt1.y = cvRound(y0 + 1000*(a));
-    pt2.x = cvRound(x0 - 1000*(-b));
-    pt2.y = cvRound(y0 - 1000*(a));
-    cv::Point pt1, pt2;
+    // we need two lines, so this scenario is a no go
+    if(counter_l == 0 || counter_r == 0)
+    {
+        return 1;
+    }
 
 
-    cv::Vec4i vec(pt1.x, pt1.y, pt2.x, pt2.y);
+    std::cout << "In lines size: " << in_lines.size() << std::endl;
+    std::cout << avg_1 << " | Counter: " << counter_l << std::endl;
+    std::cout << avg_2 << " | Counter: " << counter_r << std::endl;
 
+    avg_1 /= counter_l;
+    avg_2 /= counter_r;
+
+    std::cout << avg_1 << " | Counter: " << counter_l << std::endl;
+    std::cout << avg_2 << " | Counter: " << counter_r << std::endl;
+    
+    float rho1 = avg_1[0], theta1 = avg_1[1], rho2 = avg_2[0], theta2 = avg_2[1];
+    double a1 = cos(theta1), b1 = sin(theta1), a2 = cos(theta2), b2 = sin(theta2);
+    double x0 = a1 * rho1, y0 = b1 * rho1, x1 = a2 * rho2, y1 = b2 * rho2;
+    cv::Vec4i line_1(
+        cvRound(x0 + 1000*(-b1)),
+        cvRound(y0 + 1000*(a1)),
+        cvRound(x0 - 1000*(-b1)),
+        cvRound(y0 - 1000*(a1))
+    );
+
+    cv::Vec4i line_2(
+        cvRound(x1 + 1000*(-b2)),
+        cvRound(y1 + 1000*(a2)),
+        cvRound(x1 - 1000*(-b2)),
+        cvRound(y1 - 1000*(a2))
+    );
+
+    out_line1[0] = line_1[0];
+    out_line1[1] = line_1[1];
+    out_line1[2] = line_1[2];
+    out_line1[3] = line_1[3];
+
+    out_line2[0] = line_2[0];
+    out_line2[1] = line_2[1];
+    out_line2[2] = line_2[2];
+    out_line2[3] = line_2[3];
+    
+    return 0;
 }
 
+
+/**
+ * @brief finds lines alla
+ * 
+ */
 void findLines()
 {
     cv::VideoCapture camera(0);
@@ -187,13 +250,24 @@ void findLines()
 
             //std::cout << "X1 " << pt1.x << "Y1 " << pt1.y <<"X2 " << pt2.x <<"Y2 " << pt2.y << std::endl;
             
-            cv::line(frame, pt1, pt2, cv::Scalar(0,0,255), 3, cv::LINE_AA);
+            cv::line(frame, pt1, pt2, cv::Scalar(0,255,0), 3, cv::LINE_AA);
             //cv::Vec4i vec(pt1.x, pt1.y, pt2.x, pt2.y);
             //pix_lines.push_back(vec);
         }
 
 
-        calcCenterLine(lines, avg_line1, avg_line2);
+        int status = calcCenterLine(lines, avg_line1, avg_line2);
+        
+        // doesnt work
+        if(status == 0)
+        {
+            std::cout << "found a line alla" << std::endl;
+            std::cout << avg_line1 << " ist ein döner" << std::endl;
+            std::cout << avg_line2 << " ist ein döner" << std::endl;
+            cv::line(frame, cv::Point(avg_line1[0],avg_line1[1]), cv::Point(avg_line1[2], avg_line1[3]), cv::Scalar(0,0,255), 3, cv::LINE_AA);
+            cv::line(frame, cv::Point(avg_line2[0],avg_line2[1]), cv::Point(avg_line2[2], avg_line2[3]), cv::Scalar(0,0,255), 3, cv::LINE_AA);
+        }
+
 
         cv::imshow("Webcam", frame);
         cv::waitKey(10);

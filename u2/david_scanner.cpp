@@ -35,7 +35,7 @@ cv::Scalar _high_red_r(3, 150, 255);
 // futher params
 
 // slope variance
-double slope_var = 20;
+double slope_var = 5;
 
 // maximum angle variance
 int _max_angle_var = 5;
@@ -405,7 +405,7 @@ void findLines()
         //applying houghlines operation on the canny image
         //cv::HoughLines(mask, lines, 1, CV_PI / 180, 70, 0, 0);
 
-        cv::HoughLinesP(mask, linesP, 1, CV_PI / 180, 80, 180, 70);
+        cv::HoughLinesP(mask, linesP, 1, CV_PI / 180, 80, 160, 90);
         
         //for each line, which exceeds the threshold, calc endpoints
         for( size_t i = 0; i < linesP.size(); i++ )
@@ -421,8 +421,8 @@ void findLines()
 
             //std::cout << "X1 " << pt1.x << "Y1 " << pt1.y <<"X2 " << pt2.x <<"Y2 " << pt2.y << std::endl;
             
-            /*cv::line(frame, cv::Point(linesP[i][0], linesP[i][1]), 
-                     cv::Point(linesP[i][2], linesP[i][3]), cv::Scalar(0,255,0), 3, cv::LINE_AA);*/
+            cv::line(frame, cv::Point(linesP[i][0], linesP[i][1]), 
+                     cv::Point(linesP[i][2], linesP[i][3]), cv::Scalar(0,255,0), 3, cv::LINE_AA);
             //cv::line(frame, pt1, pt2, cv::Scalar(0,255,0), 3, cv::LINE_AA);
             //cv::Vec4i vec(pt1.x, pt1.y, pt2.x, pt2.y);
             //pix_lines.push_back(vec);
@@ -431,11 +431,9 @@ void findLines()
         // filter lines
         int status = filterLines(filteredLines, linesP);
 
-        std::cout << "num lines returned: " << filteredLines.size() << std::endl;
-
         //int status = calcCenterLine(lines, avg_line1, avg_line2);
         
-        // doesnt work
+        // less than two lines returned
         if(status == -1)
         {
             cv::imshow("Webcam", frame);

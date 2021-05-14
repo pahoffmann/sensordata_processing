@@ -12,6 +12,13 @@ cv::Mat _dist_coeffs;
 cv::Mat _R;
 cv::Mat _T;
 
+// slope line struct stuff
+struct category {
+    double avg_slope_angle;
+    double max_length;
+    cv::Vec4i longest_line;
+    std::vector<cv::Vec4i> lines;
+};
 
 //lines
 cv::Vec4i _left;
@@ -19,13 +26,16 @@ cv::Vec4i _right;
 
 // red spectrum
 
-cv::Scalar _low_red_l(175, 70, 165);
-cv::Scalar _high_red_l(180, 255, 255);
-cv::Scalar _low_red_r(0, 70, 165);
-cv::Scalar _high_red_r(5, 255, 255);
+cv::Scalar _low_red_l(177, 50, 180);
+cv::Scalar _high_red_l(180, 150, 255);
+cv::Scalar _low_red_r(0, 50, 180);
+cv::Scalar _high_red_r(3, 150, 255);
 
 
 // futher params
+
+// slope variance
+double slope_var = 20;
 
 // maximum angle variance
 int _max_angle_var = 5;
@@ -232,6 +242,117 @@ bool calcAndDisplayIntersection(cv::Vec4i line_1, cv::Vec4i line_2, cv::Mat& fra
 }
 
 /**
+ * @brief identifies the object points in ze mask. very nice.
+ * 
+ * @param mask 
+ * @param line_1 
+ * @param line_2 
+ */
+void identifyObjectPoints(cv::Mat& mask, cv::Vec4i line_1, cv::Vec4i line_2)
+{
+    // for(int i = 0; i < mask.rows; i++)
+    // {
+    //     for(int j = 0; i < mask.cols; j++)
+    //     {
+    //         // check if current pixel is denoted as red, if so: check if the point belongs to the line or if it doesnt.
+    //         if(mask.at<int>(i,j) > 200)
+    //         {
+    //             std::cout << mask.at<int>(i,j) << std::endl;
+    //         }
+    //     }
+    // }
+
+    // remove line points using this quick and easy hack, by drawing black lines on top, basically only leaving the obj points
+    cv::line(mask, cv::Point(line_1[0],line_1[1]), cv::Point(line_1[2], line_1[3]), cv::Scalar(0,0,0), 30, cv::LINE_AA);
+    cv::line(mask, cv::Point(line_2[0],line_2[1]), cv::Point(line_2[2], line_2[3]), cv::Scalar(0,0,0), 30, cv::LINE_AA);
+}
+
+/**
+ * @brief filteres found lines
+ * 
+ * @param filteredLines one line for similar angles
+ * @param lines 
+ */
+int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> lines) 
+{
+    std::vector<category> categories;
+
+    //std::cout << "num lines incoming: " << lines.size() << std::endl;
+
+    for (auto line : lines) 
+    {
+        //std::cout << "X1: " << line[0] << " X2: " << line[2] << std::endl;
+        double angle;
+        // calculate angle of line
+        /*
+        if (line[3] > line[1])
+        {
+            angle = 360 - (atan( ((line[3] - line[1]) / (line[2] - line[0])) ) * 180 / M_PI);    
+        } else {
+            angle = atan( ((line[1] - line[3]) / (line[2] - line[0])) ) * 180 / M_PI;
+        }
+        */
+        angle = atan2(line[3] - line[1], line[2] - line[0]) * 180 / M_PI;
+
+        std::cout << "angle: " << angle << std::endl;
+
+        double length = cv::norm(cv::Point2i(line[0] - line[2], line[1] - line[3]));
+        bool inserted = false;
+
+        // put line into category based on angle
+        for (auto& categ : categories)
+        {
+            if (categ.avg_slope_angle - slope_var < angle && categ.avg_slope_angle + slope_var > angle) {
+                categ.avg_slope_angle = (categ.avg_slope_angle * categ.lines.size() + angle) / (categ.lines.size() + 1);
+                
+                categ.lines.push_back(line);
+                inserted = true;
+                
+                if (length > categ.max_length) {
+                    categ.max_length = length;
+                    categ.longest_line = line;
+                }
+            }
+
+            //std::cout << "line angle: " << categ.avg_slope_angle << std::endl;
+
+        }
+        
+        // new category
+        if (!inserted) {
+            category new_cat;
+            new_cat.avg_slope_angle = angle;
+            new_cat.lines.push_back(line);
+            new_cat.longest_line = line;
+            new_cat.max_length = length;
+            categories.push_back(new_cat);
+        }        
+    }
+
+    filteredLines.clear();
+
+    if (categories.size() < 2) {
+        return -1;
+    } else if (categories.size() > 2) {
+        std::sort( categories.begin( ), categories.end( ), [ ]( const category& lhs, const category& rhs )
+        {
+            return lhs.max_length > rhs.max_length;
+        });
+
+        filteredLines.push_back(categories[0].longest_line);
+        filteredLines.push_back(categories[1].longest_line);
+
+        return 0;
+
+    } else {
+        filteredLines.push_back(categories[0].longest_line);
+        filteredLines.push_back(categories[1].longest_line);
+        return 0;
+    }
+
+}
+
+/**
  * @brief finds lines alla
  * 
  */
@@ -244,23 +365,29 @@ void findLines()
         return;
     }
 
-    cv::Mat frame, canny, res, hsv, mask_l, mask_r, mask;
+    cv::Mat frame, canny, res, hsv, mask_l, mask_r, mask, tmp;
     cv::namedWindow("Webcam");
     cv::namedWindow("Mask");
     cv::namedWindow("Canny");
     cv::namedWindow("Hough");
+    cv::namedWindow("ObjectPoints");
     std::vector<cv::Vec2f> lines;
+    std::vector<cv::Vec4i> linesP;
     std::vector<cv::Vec4i> pix_lines;
+    //std::vector<float> linesP_slopes;
+    std::vector<cv::Vec4i> filteredLines;
     cv::Vec4i avg_line1;
     cv::Vec4i avg_line2;
 
     while(true)
     {
-        camera >> frame;
+        camera >> tmp;
         //std::cout << "Cols: " << frame.cols << " Rows: " << frame.rows << std::endl;
 
-        // convert to hsv
+        // undistort first
+        cv::undistort(tmp, frame, _camera_mat, _dist_coeffs);
 
+        // convert to hsv
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
 
@@ -276,32 +403,40 @@ void findLines()
         cv::imshow("Canny", canny);
 
         //applying houghlines operation on the canny image
-        cv::HoughLines(canny, lines, 1, CV_PI / 180, 70, 0, 0);
+        //cv::HoughLines(mask, lines, 1, CV_PI / 180, 70, 0, 0);
+
+        cv::HoughLinesP(mask, linesP, 1, CV_PI / 180, 80, 180, 70);
         
         //for each line, which exceeds the threshold, calc endpoints
-        for( size_t i = 0; i < lines.size(); i++ )
+        for( size_t i = 0; i < linesP.size(); i++ )
         {
-            float rho = lines[i][0], theta = lines[i][1];
-            cv::Point pt1, pt2;
-            double a = cos(theta), b = sin(theta);
-            double x0 = a*rho, y0 = b*rho;
-            pt1.x = cvRound(x0 + 1000*(-b));
-            pt1.y = cvRound(y0 + 1000*(a));
-            pt2.x = cvRound(x0 - 1000*(-b));
-            pt2.y = cvRound(y0 - 1000*(a));
+            // cv::Point pt1, pt2;
+            // float rho = lines[i][0], theta = lines[i][1];
+            // double a = cos(theta), b = sin(theta);
+            // double x0 = a*rho, y0 = b*rho;
+            // pt1.x = cvRound(x0 + 1000*(-b));
+            // pt1.y = cvRound(y0 + 1000*(a));
+            // pt2.x = cvRound(x0 - 1000*(-b));
+            // pt2.y = cvRound(y0 - 1000*(a));
 
             //std::cout << "X1 " << pt1.x << "Y1 " << pt1.y <<"X2 " << pt2.x <<"Y2 " << pt2.y << std::endl;
             
-            cv::line(frame, pt1, pt2, cv::Scalar(0,255,0), 3, cv::LINE_AA);
+            /*cv::line(frame, cv::Point(linesP[i][0], linesP[i][1]), 
+                     cv::Point(linesP[i][2], linesP[i][3]), cv::Scalar(0,255,0), 3, cv::LINE_AA);*/
+            //cv::line(frame, pt1, pt2, cv::Scalar(0,255,0), 3, cv::LINE_AA);
             //cv::Vec4i vec(pt1.x, pt1.y, pt2.x, pt2.y);
             //pix_lines.push_back(vec);
         }
 
+        // filter lines
+        int status = filterLines(filteredLines, linesP);
 
-        int status = calcCenterLine(lines, avg_line1, avg_line2);
+        std::cout << "num lines returned: " << filteredLines.size() << std::endl;
+
+        //int status = calcCenterLine(lines, avg_line1, avg_line2);
         
         // doesnt work
-        if(status == 1)
+        if(status == -1)
         {
             cv::imshow("Webcam", frame);
             char key = (char)cv::waitKey(10);
@@ -310,16 +445,21 @@ void findLines()
             {
                 break;
             }
-            
+
             continue;
         }
+
+        avg_line1 = filteredLines[0];
+        avg_line2 = filteredLines[1];
 
         cv::line(frame, cv::Point(avg_line1[0],avg_line1[1]), cv::Point(avg_line1[2], avg_line1[3]), cv::Scalar(255,0,0), 3, cv::LINE_AA);
         cv::line(frame, cv::Point(avg_line2[0],avg_line2[1]), cv::Point(avg_line2[2], avg_line2[3]), cv::Scalar(0,0,255), 3, cv::LINE_AA);
         
         calcAndDisplayIntersection(avg_line1, avg_line2, frame);
 
+        identifyObjectPoints(mask, avg_line1, avg_line2);
 
+        cv::imshow("ObjectPoints", mask);
         cv::imshow("Webcam", frame);
         
         char key = (char)cv::waitKey(10);

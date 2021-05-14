@@ -9,5 +9,5 @@ target_link_libraries( Calibration ${OpenCV_LIBS} )
 add_executable( Extrinsics extrinsics.cpp )
 target_link_libraries( Extrinsics ${OpenCV_LIBS} )
 
-add_executable( Scanner david_scanner.cpp )
+add_executable( Scanner david_scanner.cpp culture_invariant_ply_writer.cpp)
 target_link_libraries( Scanner ${OpenCV_LIBS} )

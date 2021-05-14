@@ -4,6 +4,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include "iostream"
 #include <numeric>
+#include "culture_invariant_ply_writer.h"
 
 // Camera parameters
 cv::Mat _camera_mat;
@@ -33,6 +34,22 @@ int _max_dist_var = 20;
 // camera resolution
 int _image_width = 640;
 int _image_height = 480;
+
+
+// obj points
+std::vector<cv::Point3f> obj_points;
+
+/**
+ * @brief generates random obj points to test the ply writer
+ * 
+ */
+void randomObjPoints()
+{
+    for(int i = 0; i < 10; i++)
+    {
+        obj_points.push_back(cv::Point3f(i,i,i));
+    }
+}
 
 /**
  * @brief reads camera parameters from the extrinsics yaml
@@ -221,6 +238,12 @@ bool calcAndDisplayIntersection(cv::Vec4i line_1, cv::Vec4i line_2, cv::Mat& fra
 void findLines()
 {
     cv::VideoCapture camera(0);
+
+    if (!camera.isOpened()) {
+        std::cerr << "ERROR: Could not open camera" << std::endl;
+        return;
+    }
+
     cv::Mat frame, canny, res, hsv, mask_l, mask_r, mask;
     cv::namedWindow("Webcam");
     cv::namedWindow("Mask");
@@ -281,7 +304,13 @@ void findLines()
         if(status == 1)
         {
             cv::imshow("Webcam", frame);
-            cv::waitKey(10);
+            char key = (char)cv::waitKey(10);
+        
+            if (key == 27)
+            {
+                break;
+            }
+            
             continue;
         }
 
@@ -292,7 +321,13 @@ void findLines()
 
 
         cv::imshow("Webcam", frame);
-        cv::waitKey(10);
+        
+        char key = (char)cv::waitKey(10);
+        
+        if (key == 27)
+        {
+            break;
+        }
 
     }
     
@@ -308,4 +343,9 @@ int main(int argc, char **argv)
     }
 
     findLines();
+
+    randomObjPoints();
+
+    CultureInvariantPlyWriter writer("test.ply", obj_points);
+    writer.Start();
 }

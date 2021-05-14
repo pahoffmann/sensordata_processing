@@ -352,6 +352,11 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
 
 }
 
+int calculateSurface(cv::Vec4i one, cv::Vec4i two, cv::Vec2i intersection, cv::Vec3f dir_1, cv::Vec3f dir_2, cv::Vec3f intersection_ret)
+{
+    return 0;
+}
+
 /**
  * @brief finds lines alla
  * 
@@ -459,6 +464,8 @@ void findLines()
 
         cv::imshow("ObjectPoints", mask);
         cv::imshow("Webcam", frame);
+
+        //calculateSurface();
         
         char key = (char)cv::waitKey(10);
         

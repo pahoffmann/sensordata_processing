@@ -20,6 +20,13 @@ struct category {
     std::vector<cv::Vec4i> lines;
 };
 
+// used to represent the 3D surface enclosed by the two laser lines
+struct surface {
+    cv::Vec3f intersection;
+    cv::Vec3f dir_vec1;
+    cv::Vec3f dir_vec2;
+};
+
 //lines
 cv::Vec4i _left;
 cv::Vec4i _right;
@@ -352,9 +359,63 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
 
 }
 
-int calculateSurface(cv::Vec4i one, cv::Vec4i two, cv::Vec2i intersection, cv::Vec3f dir_1, cv::Vec3f dir_2, cv::Vec3f intersection_ret)
+/**
+ * @brief calculate the surface enclosed by the laser lines
+ * 
+ * @param one one dir vec
+ * @param two second dir vec
+ * @param intersection calculated intersection point
+ * @return surface 
+ */
+surface calculateSurface(cv::Vec4i one, cv::Vec4i two, cv::Vec2i intersection)
 {
-    return 0;
+    surface _surface;
+
+    // as the rotation mat from the calibration is a rotatio vector, we use rodrigues to convert it to a matrix to perform rotation on the pixel coords
+    cv::Mat converted;
+    cv::Vec3f one_conv_1, one_conv_2, two_conv_1, two_conv_2;
+
+    cv::Rodrigues(_R, converted);
+    cv::Mat1f tmp = converted * cv::Vec3f(intersection[0], intersection[1], 0) + _T;
+    _surface.intersection[0] = tmp(0);
+    _surface.intersection[1] = tmp(1);
+    _surface.intersection[2] = tmp(2);
+
+    cv::Mat1f one_1 = converted * cv::Vec3f(one[0], one[1], 0) + _T;
+    one_conv_1[0] = tmp(0);
+    one_conv_1[1] = tmp(1);
+    one_conv_1[2] = tmp(2);
+
+    cv::Mat1f one_2 = converted * cv::Vec3f(one[2], one[3], 0) + _T;
+    one_conv_2[0] = tmp(0);
+    one_conv_2[1] = tmp(1);
+    one_conv_2[2] = tmp(2);
+
+    cv::Mat1f two_1 = converted * cv::Vec3f(two[0], two[1], 0) + _T;
+    two_conv_1[0] = tmp(0);
+    two_conv_1[1] = tmp(1);
+    two_conv_1[2] = tmp(2);
+
+    cv::Mat1f two_2 = converted * cv::Vec3f(two[2], two[3], 0) + _T;
+    two_conv_2[0] = tmp(0);
+    two_conv_2[1] = tmp(1);
+    two_conv_2[2] = tmp(2);
+
+    // the first 'one' ist the left most line, else the other one is.
+    if(one[2] < two[1])
+    {
+        // calc dir vec
+        _surface.dir_vec1 = one_conv_1 - one_conv_2;
+        _surface.dir_vec2 = two_conv_2 - two_conv_1;
+    }
+    else
+    {
+        // calc dir vec
+        _surface.dir_vec1 = two_conv_1 - two_conv_2;
+        _surface.dir_vec2 = one_conv_2 - one_conv_1;
+    }
+
+    return _surface;
 }
 
 /**

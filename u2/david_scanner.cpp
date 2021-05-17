@@ -417,6 +417,9 @@ surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two, cv::Vec2i intersecti
     cv::Vec3f rA,rB,rC,rD; // rays to the outer points of the detected laser lines.
 
     cv::Point2i A,B,C,D;
+    cv::Vec3f worldBaseVec;
+    
+    cv::Vec3f ncL, ncR; // normal vector for the left and right plane
 
     if(one[0] < two[0]) // line 'one' is the left most line
     {
@@ -436,6 +439,8 @@ surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two, cv::Vec2i intersecti
     std::cout << "edge points: " << std::endl;
     std::cout << A << B << C << D << std::endl;
 
+    // define surfaces
+    worldBaseVec = _T;
 
 }
 

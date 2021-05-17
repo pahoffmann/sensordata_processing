@@ -11,7 +11,7 @@ cv::Mat _camera_mat;
 cv::Mat _dist_coeffs;
 cv::Mat _R;
 cv::Mat _T;
-cv::Mat4f _world_to_camera;
+cv::Mat _world_to_camera;
 cv::Mat _R_rodrigues;
 
 // slope line struct stuff
@@ -24,8 +24,8 @@ struct category {
 
 // used to represent the 3D surface enclosed by the two laser lines
 struct surface {
-    cv::Vec3f surface_point; // stützvec
-    cv::Vec3f normal;
+    cv::Mat_<double> surface_point; // stützvec
+    cv::Mat_<double> normal;
 };
 
 //lines
@@ -93,35 +93,30 @@ int readCameraParameters()
 
     // convert rotation vector to rotation matrix
     cv::Rodrigues(_R, _R_rodrigues);
-    std::cout << __LINE__ << std::endl;
     cv::Mat _transform_mat = cv::Mat(4,4,CV_32F);
-    std::cout << _R_rodrigues << std::endl;
+    //std::cout << _R_rodrigues << std::endl;
 
     _transform_mat.at<float>(0, 0) = _R_rodrigues.at<double>(0, 0);
     _transform_mat.at<float>(0, 1) = _R_rodrigues.at<double>(0, 1);
     _transform_mat.at<float>(0, 2) = _R_rodrigues.at<double>(0, 2);
 
-    std::cout << __LINE__ << std::endl;
 
 
     _transform_mat.at<float>(1, 0) = _R_rodrigues.at<double>(1, 0);
     _transform_mat.at<float>(1, 1) = _R_rodrigues.at<double>(1, 1);
     _transform_mat.at<float>(1, 2) = _R_rodrigues.at<double>(1, 2);
 
-    std::cout << __LINE__ << std::endl;
 
     _transform_mat.at<float>(2, 0) = _R_rodrigues.at<double>(2, 0);
     _transform_mat.at<float>(2, 1) = _R_rodrigues.at<double>(2, 1);
     _transform_mat.at<float>(2, 2) = _R_rodrigues.at<double>(2, 2);
 
-    std::cout << __LINE__ << std::endl;
 
 
     _transform_mat.at<float>(0, 3) = _T.at<double>(0, 0);
     _transform_mat.at<float>(1, 3) = _T.at<double>(1, 0);
     _transform_mat.at<float>(2, 3) = _T.at<double>(2, 0);
 
-    std::cout << __LINE__ << std::endl;
 
 
     _transform_mat.at<float>(3, 0) = 0;
@@ -129,16 +124,15 @@ int readCameraParameters()
     _transform_mat.at<float>(3, 2) = 0;
     _transform_mat.at<float>(3, 3) = 1;
 
-    std::cout << __LINE__ << std::endl;
 
     _world_to_camera = _transform_mat;
 
-    std::cout << "Camera Matrix:" << std::endl << _camera_mat << std::endl;
-    std::cout << "Dist Coeffs:" << std::endl << _dist_coeffs << std::endl;
-    std::cout << "Rotation mat:" << std::endl << _R << std::endl;
-    std::cout << "Rotation mat rod:" << std::endl << _R_rodrigues << std::endl;
-    std::cout << "Translation mat:" << std::endl << _T << std::endl;
-    std::cout << "Transform mat:" << std::endl << _world_to_camera << std::endl;
+    //std::cout << "Camera Matrix:" << std::endl << _camera_mat << std::endl;
+    //std::cout << "Dist Coeffs:" << std::endl << _dist_coeffs << std::endl;
+    // std::cout << "Rotation mat:" << std::endl << _R << std::endl;
+    // std::cout << "Rotation mat rod:" << std::endl << _R_rodrigues << std::endl;
+    // std::cout << "Translation mat:" << std::endl << _T << std::endl;
+    // std::cout << "Transform mat:" << std::endl << _world_to_camera << std::endl;
 
     return 0;
 }
@@ -346,7 +340,7 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
         */
         angle = atan2(line[3] - line[1], line[2] - line[0]) * 180 / M_PI;
 
-        std::cout << "angle: " << angle << std::endl;
+        //std::cout << "angle: " << angle << std::endl;
 
         double length = cv::norm(cv::Point2i(line[0] - line[2], line[1] - line[3]));
         bool inserted = false;
@@ -412,36 +406,105 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
  * @param intersection calculated intersection point
  * @return surface 
  */
-surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two, cv::Vec2i intersection)
+surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two)
 {
-    cv::Vec3f rA,rB,rC,rD; // rays to the outer points of the detected laser lines.
+    cv::Mat_<double> rA(3,1),rB(3,1),rC(3,1),rD(3,1); // rays to the outer points of the detected laser lines.
 
-    cv::Point2i A,B,C,D;
-    cv::Vec3f worldBaseVec;
+    cv::Mat_<double> A_pix(3,1),B_pix(3,1),C_pix(3,1),D_pix(3,1); // points in pixel coords
+    cv::Mat_<double> A(3,1),B(3,1),C(3,1),D(3,1); // points in pixel coords
+    cv::Mat_<double> worldBaseVec(3,1);
     
-    cv::Vec3f ncL, ncR; // normal vector for the left and right plane
+    cv::Mat_<double> ncL(3,1), ncR(3,1); // normal vector for the left and right plane
+
+    cv::Mat_<double> surface_normal(3,1);
+
 
     if(one[0] < two[0]) // line 'one' is the left most line
     {
-        A = cv::Point2i(one[2], one[3]); // center point of left line
-        B = cv::Point2i(one[0], one[1]);
-        C = cv::Point2i(two[0], two[1]); // center point of right line
-        D = cv::Point2i(two[2], two[3]);
+        A_pix(0,0) = one[2];
+        A_pix(1,0) = one[3]; // center point of left line
+        A_pix(2,0) = 1.0f;
+        B_pix(0,0) = one[0];
+        B_pix(0,1) = one[1];
+        B_pix(2,0) = 1.0f;
+        C_pix(0,0) = two[0];
+        C_pix(0,1) = two[1];
+        C_pix(2,0) = 1.0f;
+        D_pix(0,0) = two[2];
+        D_pix(0,1) = two[3];
+        D_pix(2,0) = 1.0f;
     }
     else // line 'two' is the left most line
     {
-        A = cv::Point2i(two[2], two[3]); // center point of left line
-        B = cv::Point2i(two[0], two[1]);
-        C = cv::Point2i(one[0], one[1]); // center point of right line
-        D = cv::Point2i(one[2], one[3]);
+        A_pix(0,0) = two[2];
+        A_pix(1,0) = two[3]; // center point of left line
+        A_pix(2,0) = 1.f;
+        B_pix(0,0) = two[0];
+        B_pix(0,1) = two[1];
+        B_pix(2,0) = 1.f;
+        C_pix(0,0) = one[0];
+        C_pix(0,1) = one[1];
+        C_pix(2,0) = 1.f;
+        D_pix(0,0) = one[2];
+        D_pix(0,1) = one[3];
+        D_pix(2,0) = 1.f;
     }
 
-    std::cout << "edge points: " << std::endl;
-    std::cout << A << B << C << D << std::endl;
+    //std::cout << "edge points: " << std::endl;
+    //std::cout << A_pix << B_pix << C_pix << D_pix << std::endl;
 
     // define surfaces
     worldBaseVec = _T;
 
+
+    ncL.at<double>(0,0) = 0;
+    ncL.at<double>(1,0) = 0;
+    ncL.at<double>(2,0) = 1;
+
+    //std::cout << _R_rodrigues << ncL << std::endl;
+    
+    ncR.at<double>(0,0) = 1;
+    ncR.at<double>(1,0) = 0;
+    ncR.at<double>(2,0) = 0;
+
+
+    ncL = _R_rodrigues * ncL;
+    ncR = _R_rodrigues * ncR;
+
+
+    // invert camera Mat
+    cv::Mat _camera_mat_inv = _camera_mat.inv();
+
+
+    //calc rays
+    rA = _camera_mat_inv * A_pix;
+    rB = _camera_mat_inv * B_pix;
+    rC = _camera_mat_inv * C_pix;
+    rD = _camera_mat_inv * D_pix;
+
+
+    //std::cout << rA << rB << rC << rD << std::endl;
+
+    A = ((worldBaseVec.dot(ncL)) / (rA.dot(ncL))) * rA;
+    B = ((worldBaseVec.dot(ncL)) / (rB.dot(ncL))) * rB;
+    C = ((worldBaseVec.dot(ncR)) / (rC.dot(ncR))) * rC;
+    D = ((worldBaseVec.dot(ncR)) / (rD.dot(ncR))) * rD;
+
+    std::cout << "points (cam coords): " << std::endl;
+    std::cout << A << B << C << D << std::endl;
+
+    // ebenen_norm = norm(B-A x D-C)
+    surface_normal = (B - A).cross(D - C); // calc surface normal
+    surface_normal /= cv::norm(surface_normal); // normalize the normal
+
+    surface _laserSurface;
+    _laserSurface.surface_point = A; // define stützvec
+    _laserSurface.normal = surface_normal;
+
+    std::cout << "normal: " << std::endl;
+    std::cout << surface_normal << std::endl;
+    
+    return _laserSurface;
 }
 
 /**
@@ -522,6 +585,7 @@ void findLines()
 
         cv::HoughLinesP(mask, linesP, 1, CV_PI / 180, 80, 160, 90);
         
+        
         //for each line, which exceeds the threshold, calc endpoints
         for( size_t i = 0; i < linesP.size(); i++ )
         {
@@ -546,6 +610,7 @@ void findLines()
         // filter lines
         int status = filterLines(filteredLines, linesP);
 
+
         //int status = calcCenterLine(lines, avg_line1, avg_line2);
         
         // less than two lines returned
@@ -558,30 +623,33 @@ void findLines()
             {
                 break;
             }
-
-            continue;
         }
-
-        avg_line1 = filteredLines[0];
-        avg_line2 = filteredLines[1];
-
-        cv::line(frame, cv::Point(avg_line1[0],avg_line1[1]), cv::Point(avg_line1[2], avg_line1[3]), cv::Scalar(255,0,0), 3, cv::LINE_AA);
-        cv::line(frame, cv::Point(avg_line2[0],avg_line2[1]), cv::Point(avg_line2[2], avg_line2[3]), cv::Scalar(0,0,255), 3, cv::LINE_AA);
-        
-        calcAndDisplayIntersection(avg_line1, avg_line2, frame);
-
-        identifyObjectPoints(mask, avg_line1, avg_line2);
-
-        cv::imshow("ObjectPoints", mask);
-        cv::imshow("Webcam", frame);
-
-        //calculateSurface();
-        
-        char key = (char)cv::waitKey(10);
-        
-        if (key == 27)
+        else
         {
-            break;
+            avg_line1 = filteredLines[0];
+            avg_line2 = filteredLines[1];
+
+            cv::line(frame, cv::Point(avg_line1[0],avg_line1[1]), cv::Point(avg_line1[2], avg_line1[3]), cv::Scalar(255,0,0), 3, cv::LINE_AA);
+            cv::line(frame, cv::Point(avg_line2[0],avg_line2[1]), cv::Point(avg_line2[2], avg_line2[3]), cv::Scalar(0,0,255), 3, cv::LINE_AA);
+            
+            calcAndDisplayIntersection(avg_line1, avg_line2, frame);
+
+
+            identifyObjectPoints(mask, avg_line1, avg_line2);
+
+            cv::imshow("ObjectPoints", mask);
+            cv::imshow("Webcam", frame);
+
+
+            
+            calculateLaserSurface(avg_line1, avg_line2);
+            
+            char key = (char)cv::waitKey(10);
+            
+            if (key == 27)
+            {
+                break;
+            }
         }
 
     }
@@ -590,7 +658,10 @@ void findLines()
 
 int main(int argc, char **argv)
 {
+
     int status = readCameraParameters();
+
+
     if(status == 1)
     {
         std::cout << "couldnt read extrinsics" << std::endl;

@@ -13,10 +13,10 @@ class CultureInvariantPlyWriter
 {
     private:
         std::string out_file_name;
-        std::vector<cv::Point3f> obj_points;
+        std::vector<cv::Point3d> obj_points;
         char seperation = ',';
     public:
-        CultureInvariantPlyWriter(std::string file, std::vector<cv::Point3f>& input_pts);
+        CultureInvariantPlyWriter(std::string file, std::vector<cv::Point3d>& input_pts);
 
         void Start();
 };

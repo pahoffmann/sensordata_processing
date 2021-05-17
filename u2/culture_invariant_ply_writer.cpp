@@ -1,7 +1,7 @@
 #include "culture_invariant_ply_writer.h"
 
 
-CultureInvariantPlyWriter::CultureInvariantPlyWriter(std::string file, std::vector<cv::Point3f>& input_pts)
+CultureInvariantPlyWriter::CultureInvariantPlyWriter(std::string file, std::vector<cv::Point3d>& input_pts)
 {
     out_file_name = file;
     obj_points = input_pts;

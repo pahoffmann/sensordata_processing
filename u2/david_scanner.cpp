@@ -12,6 +12,7 @@ cv::Mat _dist_coeffs;
 cv::Mat _R;
 cv::Mat _T;
 cv::Mat _world_to_camera;
+cv::Mat _camera_to_world;
 cv::Mat _R_rodrigues;
 
 // slope line struct stuff
@@ -43,7 +44,7 @@ cv::Scalar _high_red_r(3, 150, 255);
 // futher params
 
 // slope variance
-double slope_var = 5;
+double slope_var = 10;
 
 // maximum angle variance
 int _max_angle_var = 5;
@@ -55,7 +56,7 @@ int _image_height = 480;
 
 
 // obj points
-std::vector<cv::Point3f> obj_points;
+std::vector<cv::Point3d> obj_points;
 
 /**
  * @brief generates random obj points to test the ply writer
@@ -93,39 +94,32 @@ int readCameraParameters()
 
     // convert rotation vector to rotation matrix
     cv::Rodrigues(_R, _R_rodrigues);
-    cv::Mat _transform_mat = cv::Mat(4,4,CV_32F);
+    cv::Mat_<double> _transform_mat(4,4);
     //std::cout << _R_rodrigues << std::endl;
 
-    _transform_mat.at<float>(0, 0) = _R_rodrigues.at<double>(0, 0);
-    _transform_mat.at<float>(0, 1) = _R_rodrigues.at<double>(0, 1);
-    _transform_mat.at<float>(0, 2) = _R_rodrigues.at<double>(0, 2);
+    _transform_mat.at<double>(0, 0) = _R_rodrigues.at<double>(0, 0);
+    _transform_mat.at<double>(0, 1) = _R_rodrigues.at<double>(0, 1);
+    _transform_mat.at<double>(0, 2) = _R_rodrigues.at<double>(0, 2);
 
+    _transform_mat.at<double>(1, 0) = _R_rodrigues.at<double>(1, 0);
+    _transform_mat.at<double>(1, 1) = _R_rodrigues.at<double>(1, 1);
+    _transform_mat.at<double>(1, 2) = _R_rodrigues.at<double>(1, 2);
 
+    _transform_mat.at<double>(2, 0) = _R_rodrigues.at<double>(2, 0);
+    _transform_mat.at<double>(2, 1) = _R_rodrigues.at<double>(2, 1);
+    _transform_mat.at<double>(2, 2) = _R_rodrigues.at<double>(2, 2);
 
-    _transform_mat.at<float>(1, 0) = _R_rodrigues.at<double>(1, 0);
-    _transform_mat.at<float>(1, 1) = _R_rodrigues.at<double>(1, 1);
-    _transform_mat.at<float>(1, 2) = _R_rodrigues.at<double>(1, 2);
+    _transform_mat.at<double>(0, 3) = _T.at<double>(0, 0);
+    _transform_mat.at<double>(1, 3) = _T.at<double>(1, 0);
+    _transform_mat.at<double>(2, 3) = _T.at<double>(2, 0);
 
-
-    _transform_mat.at<float>(2, 0) = _R_rodrigues.at<double>(2, 0);
-    _transform_mat.at<float>(2, 1) = _R_rodrigues.at<double>(2, 1);
-    _transform_mat.at<float>(2, 2) = _R_rodrigues.at<double>(2, 2);
-
-
-
-    _transform_mat.at<float>(0, 3) = _T.at<double>(0, 0);
-    _transform_mat.at<float>(1, 3) = _T.at<double>(1, 0);
-    _transform_mat.at<float>(2, 3) = _T.at<double>(2, 0);
-
-
-
-    _transform_mat.at<float>(3, 0) = 0;
-    _transform_mat.at<float>(3, 1) = 0;
-    _transform_mat.at<float>(3, 2) = 0;
-    _transform_mat.at<float>(3, 3) = 1;
-
+    _transform_mat.at<double>(3, 0) = 0;
+    _transform_mat.at<double>(3, 1) = 0;
+    _transform_mat.at<double>(3, 2) = 0;
+    _transform_mat.at<double>(3, 3) = 1;
 
     _world_to_camera = _transform_mat;
+    _camera_to_world = _world_to_camera.inv();
 
     //std::cout << "Camera Matrix:" << std::endl << _camera_mat << std::endl;
     //std::cout << "Dist Coeffs:" << std::endl << _dist_coeffs << std::endl;
@@ -399,6 +393,34 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
 }
 
 /**
+ * @brief displays the laser surface on the 2d plane
+ * 
+ * @param frame 
+ * @param _surface 
+ */
+void displayLaserSurface(cv::Mat& frame, surface _surface, cv::Mat_<double> vec_1, cv::Mat_ <double> vec_2)
+{
+    int num_x = 100;
+    int num_y = 100;
+
+    double norm_1 = cv::norm(vec_1);
+    double norm_2 = cv::norm(vec_2);
+
+    cv::Mat_<double> point(3,1);
+
+    for(int i = 0; i < num_x; i++)
+    {
+        for(int j = 0; j < num_y; j++)
+        {
+            point = _surface.surface_point + i * ( vec_1 / norm_1 ) + j * (vec_2 / norm_2);
+            point = _camera_mat * point;
+            point /= point(2,0);
+            cv::drawMarker(frame, cv::Point(point(0,0), point(1,0)), cv::Scalar(0,0,255));
+        }
+    }
+}
+
+/**
  * @brief calculate the surface enclosed by the laser lines
  * 
  * @param one one dir vec
@@ -406,7 +428,7 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
  * @param intersection calculated intersection point
  * @return surface 
  */
-surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two)
+surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two, cv::Mat& frame)
 {
     cv::Mat_<double> rA(3,1),rB(3,1),rC(3,1),rD(3,1); // rays to the outer points of the detected laser lines.
 
@@ -425,13 +447,13 @@ surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two)
         A_pix(1,0) = one[3]; // center point of left line
         A_pix(2,0) = 1.0f;
         B_pix(0,0) = one[0];
-        B_pix(0,1) = one[1];
+        B_pix(1,0) = one[1];
         B_pix(2,0) = 1.0f;
         C_pix(0,0) = two[0];
-        C_pix(0,1) = two[1];
+        C_pix(1,0) = two[1];
         C_pix(2,0) = 1.0f;
         D_pix(0,0) = two[2];
-        D_pix(0,1) = two[3];
+        D_pix(1,0) = two[3];
         D_pix(2,0) = 1.0f;
     }
     else // line 'two' is the left most line
@@ -440,13 +462,13 @@ surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two)
         A_pix(1,0) = two[3]; // center point of left line
         A_pix(2,0) = 1.f;
         B_pix(0,0) = two[0];
-        B_pix(0,1) = two[1];
+        B_pix(1,0) = two[1];
         B_pix(2,0) = 1.f;
         C_pix(0,0) = one[0];
-        C_pix(0,1) = one[1];
+        C_pix(1,0) = one[1];
         C_pix(2,0) = 1.f;
         D_pix(0,0) = one[2];
-        D_pix(0,1) = one[3];
+        D_pix(1,0) = one[3];
         D_pix(2,0) = 1.f;
     }
 
@@ -490,9 +512,39 @@ surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two)
     C = ((worldBaseVec.dot(ncR)) / (rC.dot(ncR))) * rC;
     D = ((worldBaseVec.dot(ncR)) / (rD.dot(ncR))) * rD;
 
-    std::cout << "points (cam coords): " << std::endl;
-    std::cout << A << B << C << D << std::endl;
+    //std::cout << "points (cam coords): " << std::endl;
+    //std::cout << A << B << C << D << std::endl;
 
+    //std::cout << "points (WORLD coords): " << std::endl;
+    cv::Mat_<double> linePointWorld1(4,1);
+    cv::Mat_<double> linePointWorld2(4,1);
+    cv::Mat_<double> linePointWorld3(4,1);
+    cv::Mat_<double> linePointWorld4(4,1);
+    linePointWorld1(0,0) = A(0,0);
+    linePointWorld1(1,0) = A(1,0);
+    linePointWorld1(2,0) = A(2,0);
+    linePointWorld1(3,0) = 1.f;
+
+    linePointWorld2(0,0) = C(0,0);
+    linePointWorld2(1,0) = C(1,0);
+    linePointWorld2(2,0) = C(2,0);
+    linePointWorld2(3,0) = 1.f;
+
+    linePointWorld3(0,0) = B(0,0);
+    linePointWorld3(1,0) = B(1,0);
+    linePointWorld3(2,0) = B(2,0);
+    linePointWorld3(3,0) = 1.f;
+
+    linePointWorld4(0,0) = D(0,0);
+    linePointWorld4(1,0) = D(1,0);
+    linePointWorld4(2,0) = D(2,0);
+    linePointWorld4(3,0) = 1.f;
+
+    //std::cout << _camera_to_world * linePointWorld1 << std::endl;
+    //std::cout << _camera_to_world * linePointWorld2 << std::endl;
+    //std::cout << _camera_to_world * linePointWorld3 << std::endl;
+    //std::cout << _camera_to_world * linePointWorld4 << std::endl;
+    
     // ebenen_norm = norm(B-A x D-C)
     surface_normal = (B - A).cross(D - C); // calc surface normal
     surface_normal /= cv::norm(surface_normal); // normalize the normal
@@ -501,34 +553,74 @@ surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two)
     _laserSurface.surface_point = A; // define stützvec
     _laserSurface.normal = surface_normal;
 
-    std::cout << "normal: " << std::endl;
-    std::cout << surface_normal << std::endl;
+    //std::cout << "normal: " << std::endl;
+    //std::cout << surface_normal << std::endl;
+
+    displayLaserSurface(frame, _laserSurface, B - A, D - C);
     
     return _laserSurface;
 }
 
 /**
- * @brief calculate 'b' offset for the current objectpoint 
+ * @brief calculates world coordinates of object points
  * 
- * @param _surface 
- * @param objPoint 
- * @return float 
+ * @param frame 
  */
-float calcOffsetB(surface& _surface, cv::Point2i& objPoint)
+void calculateObjectPoints(cv::Mat frame, surface _surface) 
 {
-    return 0.0f;
+    cv::Mat _camera_mat_inv = _camera_mat.inv();
+    cv::Mat_<double> obj_point_ray(3,1);
+    cv::Mat_<double> obj_point_cam(3,1);
+    cv::Mat_<double> obj_point_pix(3,1);
+    cv::Mat_<double> obj_point_world(4,1);
+    int counter = 0;
+
+    //std::cout << "Num Points before: " << obj_points.size() << std::endl;
+
+    for(int i = 0; i < frame.rows; i++)
+    {
+        for(int j = 0; j < frame.cols; j++)
+        {
+            if(frame.at<int>(i,j) > 0)
+            {
+                counter ++;
+                // don't swap i and j here
+                obj_point_pix(0,0) = j; // col for x value
+                obj_point_pix(1,0) = i; // row for y
+                obj_point_pix(2,0) = 1.f;
+                
+                obj_point_ray = _camera_mat_inv * obj_point_pix; //ray calculation
+                
+                // camera coordinate obj point
+                obj_point_cam = ((_surface.surface_point.dot(_surface.normal)) 
+                                / (obj_point_ray.dot(_surface.normal))) * obj_point_ray;
+
+                obj_point_world(0,0) = obj_point_cam(0,0);
+                obj_point_world(1,0) = obj_point_cam(1,0);
+                obj_point_world(2,0) = obj_point_cam(2,0);
+                obj_point_world(3,0) = 1.f;
+
+                //transform to world coords
+                obj_point_world = _camera_to_world * obj_point_world;
+                obj_point_world /= obj_point_world(3, 0); // divide through homogen coordinate
+
+                //std::cout << "World Point: " << obj_point_world << std::endl;
+
+                // create vector and push to object point array
+                cv::Point3d tmp(obj_point_world.at<double>(0,0), obj_point_world.at<double>(1,0),obj_point_world.at<double>(2,0));
+                obj_points.push_back(tmp);
+
+                //std::cout << tmp << std::endl;
+            }
+        }
+    }
+    //std::cout << "NUMBER OF AWESOME POINTS: " << counter << std::endl;
+
+    //std::cout << "Num Points after: " << obj_points.size() << std::endl;
+
 }
 
-/**
- * @brief calculate the angle between the laser surface and the world
- * 
- * @param surface 
- * @return float 
- */
-float calcLaserAngle(surface& surface)
-{
-    
-}
+
 
 /**
  * @brief finds lines alla
@@ -546,12 +638,11 @@ void findLines()
     cv::Mat frame, canny, res, hsv, mask_l, mask_r, mask, tmp;
     cv::namedWindow("Webcam");
     cv::namedWindow("Mask");
-    cv::namedWindow("Canny");
+    //cv::namedWindow("Canny");
     cv::namedWindow("Hough");
     cv::namedWindow("ObjectPoints");
     std::vector<cv::Vec2f> lines;
     std::vector<cv::Vec4i> linesP;
-    std::vector<cv::Vec4i> pix_lines;
     //std::vector<float> linesP_slopes;
     std::vector<cv::Vec4i> filteredLines;
     cv::Vec4i avg_line1;
@@ -574,14 +665,9 @@ void findLines()
 
         cv::bitwise_or(mask_l, mask_r, mask);
 
-        cv::imshow("Mask", mask);
+        // cv::Canny(mask, canny, 50, 200, 3); // use canny to detect edges alla
 
-        cv::Canny(mask, canny, 50, 200, 3); // use canny to detect edges alla
-
-        cv::imshow("Canny", canny);
-
-        //applying houghlines operation on the canny image
-        //cv::HoughLines(mask, lines, 1, CV_PI / 180, 70, 0, 0);
+        // cv::imshow("Canny", canny);
 
         cv::HoughLinesP(mask, linesP, 1, CV_PI / 180, 80, 160, 90);
         
@@ -589,33 +675,19 @@ void findLines()
         //for each line, which exceeds the threshold, calc endpoints
         for( size_t i = 0; i < linesP.size(); i++ )
         {
-            // cv::Point pt1, pt2;
-            // float rho = lines[i][0], theta = lines[i][1];
-            // double a = cos(theta), b = sin(theta);
-            // double x0 = a*rho, y0 = b*rho;
-            // pt1.x = cvRound(x0 + 1000*(-b));
-            // pt1.y = cvRound(y0 + 1000*(a));
-            // pt2.x = cvRound(x0 - 1000*(-b));
-            // pt2.y = cvRound(y0 - 1000*(a));
-
-            //std::cout << "X1 " << pt1.x << "Y1 " << pt1.y <<"X2 " << pt2.x <<"Y2 " << pt2.y << std::endl;
-            
             cv::line(frame, cv::Point(linesP[i][0], linesP[i][1]), 
                      cv::Point(linesP[i][2], linesP[i][3]), cv::Scalar(0,255,0), 3, cv::LINE_AA);
-            //cv::line(frame, pt1, pt2, cv::Scalar(0,255,0), 3, cv::LINE_AA);
-            //cv::Vec4i vec(pt1.x, pt1.y, pt2.x, pt2.y);
-            //pix_lines.push_back(vec);
         }
 
         // filter lines
         int status = filterLines(filteredLines, linesP);
 
 
-        //int status = calcCenterLine(lines, avg_line1, avg_line2);
         
         // less than two lines returned
         if(status == -1)
         {
+            cv::imshow("Mask", mask);
             cv::imshow("Webcam", frame);
             char key = (char)cv::waitKey(10);
         
@@ -634,15 +706,26 @@ void findLines()
             
             calcAndDisplayIntersection(avg_line1, avg_line2, frame);
 
+            cv::Mat eroded, closed;
+            cv::morphologyEx(mask, closed, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)));
+            //cv::erode(closed, eroded, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)));
+            identifyObjectPoints(closed, avg_line1, avg_line2);
 
-            identifyObjectPoints(mask, avg_line1, avg_line2);
+            surface _surface = calculateLaserSurface(avg_line1, avg_line2, frame);
 
-            cv::imshow("ObjectPoints", mask);
+            // debug: make laser surface visible...
+            cv::Mat_<double> point_2d_1 = _camera_mat * _surface.surface_point;
+            cv::Mat_<double> point_2d_2 = _camera_mat * (_surface.surface_point + 40 * _surface.normal);
+            point_2d_1 /= point_2d_1(0,2);
+            point_2d_2 /= point_2d_2(0,2);
+
+            // draw laser surface normal
+            cv::arrowedLine(frame, cv::Point(point_2d_1(0,0), point_2d_1(1,0)), cv::Point(point_2d_2(0,0), point_2d_2(1,0)), cv::Scalar(100,255,50));
+
+            cv::imshow("ObjectPoints", closed);
             cv::imshow("Webcam", frame);
 
-
-            
-            calculateLaserSurface(avg_line1, avg_line2);
+            calculateObjectPoints(closed, _surface);
             
             char key = (char)cv::waitKey(10);
             
@@ -670,7 +753,7 @@ int main(int argc, char **argv)
 
     findLines();
 
-    randomObjPoints();
+    //randomObjPoints();
 
     CultureInvariantPlyWriter writer("test.ply", obj_points);
     writer.Start();

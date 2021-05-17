@@ -11,6 +11,8 @@ cv::Mat _camera_mat;
 cv::Mat _dist_coeffs;
 cv::Mat _R;
 cv::Mat _T;
+cv::Mat4f _world_to_camera;
+cv::Mat _R_rodrigues;
 
 // slope line struct stuff
 struct category {
@@ -22,9 +24,8 @@ struct category {
 
 // used to represent the 3D surface enclosed by the two laser lines
 struct surface {
-    cv::Vec3f intersection;
-    cv::Vec3f dir_vec1;
-    cv::Vec3f dir_vec2;
+    cv::Vec3f surface_point; // stützvec
+    cv::Vec3f normal;
 };
 
 //lines
@@ -90,10 +91,54 @@ int readCameraParameters()
     fs["rotation_mat"] >> _R;
     fs["translation_mat"] >> _T;
 
+    // convert rotation vector to rotation matrix
+    cv::Rodrigues(_R, _R_rodrigues);
+    std::cout << __LINE__ << std::endl;
+    cv::Mat _transform_mat = cv::Mat(4,4,CV_32F);
+    std::cout << _R_rodrigues << std::endl;
+
+    _transform_mat.at<float>(0, 0) = _R_rodrigues.at<double>(0, 0);
+    _transform_mat.at<float>(0, 1) = _R_rodrigues.at<double>(0, 1);
+    _transform_mat.at<float>(0, 2) = _R_rodrigues.at<double>(0, 2);
+
+    std::cout << __LINE__ << std::endl;
+
+
+    _transform_mat.at<float>(1, 0) = _R_rodrigues.at<double>(1, 0);
+    _transform_mat.at<float>(1, 1) = _R_rodrigues.at<double>(1, 1);
+    _transform_mat.at<float>(1, 2) = _R_rodrigues.at<double>(1, 2);
+
+    std::cout << __LINE__ << std::endl;
+
+    _transform_mat.at<float>(2, 0) = _R_rodrigues.at<double>(2, 0);
+    _transform_mat.at<float>(2, 1) = _R_rodrigues.at<double>(2, 1);
+    _transform_mat.at<float>(2, 2) = _R_rodrigues.at<double>(2, 2);
+
+    std::cout << __LINE__ << std::endl;
+
+
+    _transform_mat.at<float>(0, 3) = _T.at<double>(0, 0);
+    _transform_mat.at<float>(1, 3) = _T.at<double>(1, 0);
+    _transform_mat.at<float>(2, 3) = _T.at<double>(2, 0);
+
+    std::cout << __LINE__ << std::endl;
+
+
+    _transform_mat.at<float>(3, 0) = 0;
+    _transform_mat.at<float>(3, 1) = 0;
+    _transform_mat.at<float>(3, 2) = 0;
+    _transform_mat.at<float>(3, 3) = 1;
+
+    std::cout << __LINE__ << std::endl;
+
+    _world_to_camera = _transform_mat;
+
     std::cout << "Camera Matrix:" << std::endl << _camera_mat << std::endl;
     std::cout << "Dist Coeffs:" << std::endl << _dist_coeffs << std::endl;
     std::cout << "Rotation mat:" << std::endl << _R << std::endl;
+    std::cout << "Rotation mat rod:" << std::endl << _R_rodrigues << std::endl;
     std::cout << "Translation mat:" << std::endl << _T << std::endl;
+    std::cout << "Transform mat:" << std::endl << _world_to_camera << std::endl;
 
     return 0;
 }
@@ -367,55 +412,54 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
  * @param intersection calculated intersection point
  * @return surface 
  */
-surface calculateSurface(cv::Vec4i one, cv::Vec4i two, cv::Vec2i intersection)
+surface calculateLaserSurface(cv::Vec4i one, cv::Vec4i two, cv::Vec2i intersection)
 {
-    surface _surface;
+    cv::Vec3f rA,rB,rC,rD; // rays to the outer points of the detected laser lines.
 
-    // as the rotation mat from the calibration is a rotatio vector, we use rodrigues to convert it to a matrix to perform rotation on the pixel coords
-    cv::Mat converted;
-    cv::Vec3f one_conv_1, one_conv_2, two_conv_1, two_conv_2;
+    cv::Point2i A,B,C,D;
 
-    cv::Rodrigues(_R, converted);
-    cv::Mat1f tmp = converted * cv::Vec3f(intersection[0], intersection[1], 0) + _T;
-    _surface.intersection[0] = tmp(0);
-    _surface.intersection[1] = tmp(1);
-    _surface.intersection[2] = tmp(2);
-
-    cv::Mat1f one_1 = converted * cv::Vec3f(one[0], one[1], 0) + _T;
-    one_conv_1[0] = tmp(0);
-    one_conv_1[1] = tmp(1);
-    one_conv_1[2] = tmp(2);
-
-    cv::Mat1f one_2 = converted * cv::Vec3f(one[2], one[3], 0) + _T;
-    one_conv_2[0] = tmp(0);
-    one_conv_2[1] = tmp(1);
-    one_conv_2[2] = tmp(2);
-
-    cv::Mat1f two_1 = converted * cv::Vec3f(two[0], two[1], 0) + _T;
-    two_conv_1[0] = tmp(0);
-    two_conv_1[1] = tmp(1);
-    two_conv_1[2] = tmp(2);
-
-    cv::Mat1f two_2 = converted * cv::Vec3f(two[2], two[3], 0) + _T;
-    two_conv_2[0] = tmp(0);
-    two_conv_2[1] = tmp(1);
-    two_conv_2[2] = tmp(2);
-
-    // the first 'one' ist the left most line, else the other one is.
-    if(one[2] < two[1])
+    if(one[0] < two[0]) // line 'one' is the left most line
     {
-        // calc dir vec
-        _surface.dir_vec1 = one_conv_1 - one_conv_2;
-        _surface.dir_vec2 = two_conv_2 - two_conv_1;
+        A = cv::Point2i(one[2], one[3]); // center point of left line
+        B = cv::Point2i(one[0], one[1]);
+        C = cv::Point2i(two[0], two[1]); // center point of right line
+        D = cv::Point2i(two[2], two[3]);
     }
-    else
+    else // line 'two' is the left most line
     {
-        // calc dir vec
-        _surface.dir_vec1 = two_conv_1 - two_conv_2;
-        _surface.dir_vec2 = one_conv_2 - one_conv_1;
+        A = cv::Point2i(two[2], two[3]); // center point of left line
+        B = cv::Point2i(two[0], two[1]);
+        C = cv::Point2i(one[0], one[1]); // center point of right line
+        D = cv::Point2i(one[2], one[3]);
     }
 
-    return _surface;
+    std::cout << "edge points: " << std::endl;
+    std::cout << A << B << C << D << std::endl;
+
+
+}
+
+/**
+ * @brief calculate 'b' offset for the current objectpoint 
+ * 
+ * @param _surface 
+ * @param objPoint 
+ * @return float 
+ */
+float calcOffsetB(surface& _surface, cv::Point2i& objPoint)
+{
+    return 0.0f;
+}
+
+/**
+ * @brief calculate the angle between the laser surface and the world
+ * 
+ * @param surface 
+ * @return float 
+ */
+float calcLaserAngle(surface& surface)
+{
+    
 }
 
 /**

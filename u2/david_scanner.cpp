@@ -40,6 +40,10 @@ cv::Scalar _high_red_l(180, 150, 255);
 cv::Scalar _low_red_r(0, 50, 180);
 cv::Scalar _high_red_r(3, 150, 255);
 
+// cv::Scalar _low_red_l(175, 50, 120);
+// cv::Scalar _high_red_l(180, 200, 255);
+// cv::Scalar _low_red_r(0, 50, 120);
+// cv::Scalar _high_red_r(5, 200, 255);
 
 // futher params
 
@@ -303,8 +307,8 @@ void identifyObjectPoints(cv::Mat& mask, cv::Vec4i line_1, cv::Vec4i line_2)
     // }
 
     // remove line points using this quick and easy hack, by drawing black lines on top, basically only leaving the obj points
-    cv::line(mask, cv::Point(line_1[0],line_1[1]), cv::Point(line_1[2], line_1[3]), cv::Scalar(0,0,0), 30, cv::LINE_AA);
-    cv::line(mask, cv::Point(line_2[0],line_2[1]), cv::Point(line_2[2], line_2[3]), cv::Scalar(0,0,0), 30, cv::LINE_AA);
+    cv::line(mask, cv::Point(line_1[0],line_1[1]), cv::Point(line_1[2], line_1[3]), cv::Scalar(0,0,0), 50, cv::LINE_AA);
+    cv::line(mask, cv::Point(line_2[0],line_2[1]), cv::Point(line_2[2], line_2[3]), cv::Scalar(0,0,0), 50, cv::LINE_AA);
 }
 
 /**
@@ -342,7 +346,7 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
         // put line into category based on angle
         for (auto& categ : categories)
         {
-            if (categ.avg_slope_angle - slope_var < angle && categ.avg_slope_angle + slope_var > angle) {
+            if ((categ.avg_slope_angle - slope_var < angle) && (categ.avg_slope_angle + slope_var > angle)) {
                 categ.avg_slope_angle = (categ.avg_slope_angle * categ.lines.size() + angle) / (categ.lines.size() + 1);
                 
                 categ.lines.push_back(line);
@@ -379,14 +383,35 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
             return lhs.max_length > rhs.max_length;
         });
 
-        filteredLines.push_back(categories[0].longest_line);
-        filteredLines.push_back(categories[1].longest_line);
+        // DEBUG
+        // std::cout << "angle 1: " << categories[0].avg_slope_angle << std::endl;
+        // std::cout << "angle 2: " << categories[1].avg_slope_angle << std::endl;
+
+        // order by angle to determine left hand side or right hand side
+        if (categories[0].avg_slope_angle < categories[1].avg_slope_angle) {
+            filteredLines.push_back(categories[0].longest_line);
+            filteredLines.push_back(categories[1].longest_line);
+        } else {
+            filteredLines.push_back(categories[1].longest_line);
+            filteredLines.push_back(categories[0].longest_line);
+        }
 
         return 0;
 
     } else {
-        filteredLines.push_back(categories[0].longest_line);
-        filteredLines.push_back(categories[1].longest_line);
+        // DEBUG
+        // std::cout << "angle 1: " << categories[0].avg_slope_angle << std::endl;
+        // std::cout << "angle 2: " << categories[1].avg_slope_angle << std::endl;
+
+        // order by angle to determine left hand side or right hand side
+        if (categories[0].avg_slope_angle < categories[1].avg_slope_angle) {
+            filteredLines.push_back(categories[0].longest_line);
+            filteredLines.push_back(categories[1].longest_line);
+        } else {
+            filteredLines.push_back(categories[1].longest_line);
+            filteredLines.push_back(categories[0].longest_line);
+        }
+
         return 0;
     }
 
@@ -608,7 +633,14 @@ void calculateObjectPoints(cv::Mat frame, surface _surface)
 
                 // create vector and push to object point array
                 cv::Point3d tmp(obj_point_world.at<double>(0,0), obj_point_world.at<double>(1,0),obj_point_world.at<double>(2,0));
-                obj_points.push_back(tmp);
+
+                // only save valid object points
+                if ((tmp.x <= 100) && (tmp.y <= 100) && (tmp.z <= 100)
+                    && (tmp.x >= -8) && (tmp.y >= -8) && (tmp.z >= -8))
+                {
+                    obj_points.push_back(tmp);
+                }
+
 
                 //std::cout << tmp << std::endl;
             }
@@ -666,18 +698,20 @@ void findLines()
         cv::bitwise_or(mask_l, mask_r, mask);
 
         // cv::Canny(mask, canny, 50, 200, 3); // use canny to detect edges alla
+        //cv::Canny(mask, canny, 50, 200, 3); // use canny to detect edges alla
 
-        // cv::imshow("Canny", canny);
+        //cv::imshow("Canny", canny);
 
-        cv::HoughLinesP(mask, linesP, 1, CV_PI / 180, 80, 160, 90);
+        // cv::HoughLinesP(canny, linesP, 1, CV_PI / 180, 80, 160, 90);
+        cv::HoughLinesP(mask, linesP, 1, CV_PI / 180, 80, 160, 120);
         
         
         //for each line, which exceeds the threshold, calc endpoints
-        for( size_t i = 0; i < linesP.size(); i++ )
+        /* for( size_t i = 0; i < linesP.size(); i++ )
         {
             cv::line(frame, cv::Point(linesP[i][0], linesP[i][1]), 
                      cv::Point(linesP[i][2], linesP[i][3]), cv::Scalar(0,255,0), 3, cv::LINE_AA);
-        }
+        } */
 
         // filter lines
         int status = filterLines(filteredLines, linesP);
@@ -707,9 +741,9 @@ void findLines()
             calcAndDisplayIntersection(avg_line1, avg_line2, frame);
 
             cv::Mat eroded, closed;
-            cv::morphologyEx(mask, closed, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)));
+            //cv::morphologyEx(mask, closed, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)));
             //cv::erode(closed, eroded, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)));
-            identifyObjectPoints(closed, avg_line1, avg_line2);
+            identifyObjectPoints(mask, avg_line1, avg_line2);
 
             surface _surface = calculateLaserSurface(avg_line1, avg_line2, frame);
 
@@ -722,10 +756,10 @@ void findLines()
             // draw laser surface normal
             cv::arrowedLine(frame, cv::Point(point_2d_1(0,0), point_2d_1(1,0)), cv::Point(point_2d_2(0,0), point_2d_2(1,0)), cv::Scalar(100,255,50));
 
-            cv::imshow("ObjectPoints", closed);
+            cv::imshow("ObjectPoints", mask);
             cv::imshow("Webcam", frame);
 
-            calculateObjectPoints(closed, _surface);
+            calculateObjectPoints(mask, _surface);
             
             char key = (char)cv::waitKey(10);
             

@@ -378,6 +378,8 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
     if (categories.size() < 2) {
         return -1;
     } else if (categories.size() > 2) {
+
+        /*
         std::sort( categories.begin( ), categories.end( ), [ ]( const category& lhs, const category& rhs )
         {
             return lhs.max_length > rhs.max_length;
@@ -397,11 +399,21 @@ int filterLines(std::vector<cv::Vec4i>& filteredLines, std::vector<cv::Vec4i> li
         }
 
         return 0;
+        */
+
+       return -1;
 
     } else {
         // DEBUG
         // std::cout << "angle 1: " << categories[0].avg_slope_angle << std::endl;
         // std::cout << "angle 2: " << categories[1].avg_slope_angle << std::endl;
+
+        // filter out horizontal lines, as they may be invalid
+        if(categories[0].avg_slope_angle - 5 < 0 && categories[0].avg_slope_angle + 5 > 0
+            || categories[1].avg_slope_angle - 5 < 0 && categories[1].avg_slope_angle + 5 > 0) 
+        {
+            return -1;
+        }
 
         // order by angle to determine left hand side or right hand side
         if (categories[0].avg_slope_angle < categories[1].avg_slope_angle) {
@@ -598,7 +610,11 @@ void calculateObjectPoints(cv::Mat frame, surface _surface)
     cv::Mat_<double> obj_point_cam(3,1);
     cv::Mat_<double> obj_point_pix(3,1);
     cv::Mat_<double> obj_point_world(4,1);
+    cv::Mat_<double> obj_point_world_3d(3,1);
+    cv::Mat_<double> R_rodrigues_inv(3,3);
     int counter = 0;
+
+    R_rodrigues_inv = _R_rodrigues.inv();
 
     //std::cout << "Num Points before: " << obj_points.size() << std::endl;
 
@@ -626,13 +642,15 @@ void calculateObjectPoints(cv::Mat frame, surface _surface)
                 obj_point_world(3,0) = 1.f;
 
                 //transform to world coords
-                obj_point_world = _camera_to_world * obj_point_world;
-                obj_point_world /= obj_point_world(3, 0); // divide through homogen coordinate
+                //obj_point_world = _camera_to_world * obj_point_world;
+                //obj_point_world /= obj_point_world(3, 0); // divide through homogen coordinate
+                obj_point_world_3d = (R_rodrigues_inv * obj_point_cam) - (R_rodrigues_inv * _T);
 
                 //std::cout << "World Point: " << obj_point_world << std::endl;
 
-                // create vector and push to object point array
-                cv::Point3d tmp(obj_point_world.at<double>(0,0), obj_point_world.at<double>(1,0),obj_point_world.at<double>(2,0));
+                // create vector and push to object point array                
+                // cv::Point3d tmp(obj_point_world.at<double>(0,0), obj_point_world.at<double>(1,0),obj_point_world.at<double>(2,0));
+                cv::Point3d tmp(obj_point_world_3d(0,0), obj_point_world_3d(1,0), obj_point_world_3d(2,0));
 
                 // only save valid object points
                 if ((tmp.x <= 100) && (tmp.y <= 100) && (tmp.z <= 100)
@@ -640,6 +658,7 @@ void calculateObjectPoints(cv::Mat frame, surface _surface)
                 {
                     obj_points.push_back(tmp);
                 }
+                
 
 
                 //std::cout << tmp << std::endl;

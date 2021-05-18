@@ -622,7 +622,7 @@ void calculateObjectPoints(cv::Mat frame, surface _surface)
     {
         for(int j = 0; j < frame.cols; j++)
         {
-            if(frame.at<int>(i,j) > 0)
+            if(frame.at<uchar>(i,j) > 0)
             {
                 counter ++;
                 // don't swap i and j here
@@ -754,8 +754,8 @@ void findLines()
             avg_line1 = filteredLines[0];
             avg_line2 = filteredLines[1];
 
-            cv::line(frame, cv::Point(avg_line1[0],avg_line1[1]), cv::Point(avg_line1[2], avg_line1[3]), cv::Scalar(255,0,0), 3, cv::LINE_AA);
-            cv::line(frame, cv::Point(avg_line2[0],avg_line2[1]), cv::Point(avg_line2[2], avg_line2[3]), cv::Scalar(0,0,255), 3, cv::LINE_AA);
+            cv::line(frame, cv::Point(avg_line1[0],avg_line1[1]), cv::Point(avg_line1[2], avg_line1[3]), cv::Scalar(0,255,255), 3, cv::LINE_AA);
+            cv::line(frame, cv::Point(avg_line2[0],avg_line2[1]), cv::Point(avg_line2[2], avg_line2[3]), cv::Scalar(255,0,0), 3, cv::LINE_AA);
             
             calcAndDisplayIntersection(avg_line1, avg_line2, frame);
 
@@ -776,6 +776,7 @@ void findLines()
             cv::arrowedLine(frame, cv::Point(point_2d_1(0,0), point_2d_1(1,0)), cv::Point(point_2d_2(0,0), point_2d_2(1,0)), cv::Scalar(100,255,50));
 
             cv::imshow("ObjectPoints", mask);
+            cv::imshow("Mask", mask);
             cv::imshow("Webcam", frame);
 
             calculateObjectPoints(mask, _surface);

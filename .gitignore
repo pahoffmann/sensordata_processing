@@ -42,3 +42,5 @@ build/*
 .vscode
 
 u3/data/*
+u3/data/
+/data/

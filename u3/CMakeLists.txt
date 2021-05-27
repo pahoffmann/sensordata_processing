@@ -17,4 +17,6 @@ else()
          DESTINATION "${DATA_DIR}")
     file(COPY "${CMAKE_SOURCE_DIR}/opencv/samples/data/stereo_calib.xml" 
          DESTINATION "${DATA_DIR}")
+    file(COPY "${CMAKE_SOURCE_DIR}/opencv/build/bin/example_cpp_stereo_match" 
+         DESTINATION "${DATA_DIR}")
 endif()

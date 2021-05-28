@@ -9,14 +9,17 @@
 
 #include "opencv2/calib3d/calib3d.hpp"
 #include <opencv2/imgproc/imgproc.hpp>
+#include "opencv2/ximgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/core/utility.hpp"
 
 #include <stdio.h>
 #include <sstream>
+#include <iostream>
 
 using namespace cv;
+using namespace cv::ximgproc;
 
 static void print_help(char** argv)
 {
@@ -28,7 +31,9 @@ static void print_help(char** argv)
 
 static void saveXYZ(const char* filename, const Mat& mat)
 {
-    const double max_z = 1.0e4;
+    const double max_z = 1.0e2;
+    const double max_y = 1.0e2;
+    const double max_x = 1.0e2;
     FILE* fp = fopen(filename, "wt");
     for(int y = 0; y < mat.rows; y++)
     {
@@ -36,6 +41,7 @@ static void saveXYZ(const char* filename, const Mat& mat)
         {
             Vec3f point = mat.at<Vec3f>(y, x);
             if(fabs(point[2] - max_z) < FLT_EPSILON || fabs(point[2]) > max_z) continue;
+            if(point[0] > max_x || point[1] > max_y || point[2] > max_z) continue;
             fprintf(fp, "%f %f %f\n", point[0], point[1], point[2]);
         }
     }
@@ -60,15 +66,16 @@ int main(int argc, char** argv)
 
     Ptr<StereoBM> bm = StereoBM::create(16,9);
     Ptr<StereoSGBM> sgbm = StereoSGBM::create(0,16,3);
+    Ptr<DisparityWLSFilter> wls_filter;
     cv::CommandLineParser parser(argc, argv,
-        "{@arg1||}{@arg2||}{help h||}{algorithm||}{max-disparity|0|}{blocksize|0|}{no-display||}{color||}{scale|1|}{i||}{e||}{o||}{p||}");
+        "{@arg1||}{@arg2||}{help h||}{algorithm||}{max-disparity|0|}{blocksize|0|}{no-display||}{color||}{scale|1|}{i||}{e||}{o||}{p||}{sigma||}");
     if(parser.has("help"))
     {
         print_help(argv);
         return 0;
     }
-    // img1_filename = samples::findFile(parser.get<std::string>(0));
-    // img2_filename = samples::findFile(parser.get<std::string>(1));
+    img1_filename = samples::findFile(parser.get<std::string>(0));
+    img2_filename = samples::findFile(parser.get<std::string>(1));
     if (parser.has("algorithm"))
     {
         std::string _alg = parser.get<std::string>("algorithm");
@@ -139,6 +146,8 @@ int main(int argc, char** argv)
     int color_mode = alg == STEREO_BM ? 0 : -1;
     Mat img1 = imread(img1_filename, color_mode);
     Mat img2 = imread(img2_filename, color_mode);
+    Mat left_orig;
+    img1.copyTo(left_orig);
 
     if (img1.empty())
     {
@@ -165,6 +174,7 @@ int main(int argc, char** argv)
 
     Rect roi1, roi2;
     Mat Q;
+    std::cout << __LINE__ << std::endl;
 
     if( !intrinsic_filename.empty() )
     {
@@ -210,6 +220,8 @@ int main(int argc, char** argv)
         img2 = img2r;
     }
 
+    std::cout << __LINE__ << std::endl;
+
     numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((img_size.width/8) + 15) & -16;
 
     bm->setROI1(roi1);
@@ -247,13 +259,18 @@ int main(int argc, char** argv)
     else if(alg==STEREO_3WAY)
         sgbm->setMode(StereoSGBM::MODE_SGBM_3WAY);
 
-    Mat disp, disp8;
+    std::cout << __LINE__ << std::endl;
+
+
+    Mat disp, disp8, right_disp, filtered_disp,solved_disp, solved_filtered_disp;
     //Mat img1p, img2p, dispp;
     //copyMakeBorder(img1, img1p, 0, 0, numberOfDisparities, 0, IPL_BORDER_REPLICATE);
     //copyMakeBorder(img2, img2p, 0, 0, numberOfDisparities, 0, IPL_BORDER_REPLICATE);
 
     int64 t = getTickCount();
     float disparity_multiplier = 1.0f;
+    wls_filter = createDisparityWLSFilter(sgbm);
+
     if( alg == STEREO_BM )
     {
         bm->compute(img1, img2, disp);
@@ -262,23 +279,57 @@ int main(int argc, char** argv)
     }
     else if( alg == STEREO_SGBM || alg == STEREO_HH || alg == STEREO_HH4 || alg == STEREO_3WAY )
     {
+        // StereoMatcher for disparity filtering
+        Ptr<StereoMatcher> right_matcher = createRightMatcher(sgbm);
         sgbm->compute(img1, img2, disp);
+        right_matcher->compute(img2, img1, right_disp);
+
         if (disp.type() == CV_16S)
             disparity_multiplier = 16.0f;
     }
+
+    std::cout << __LINE__ << std::endl;
+
+    double sigma = parser.has("sigma") ? parser.get<double>("sigma") : 1.5;
+    wls_filter->setLambda(8000.0);
+    wls_filter->setSigmaColor(sigma);
+    std::cout << __LINE__ << std::endl;
+
+    wls_filter->filter(disp,left_orig,filtered_disp,right_disp);
+
+    std::cout << __LINE__ << std::endl;
+
+    Mat raw_disp_vis;
+    getDisparityVis(disp,raw_disp_vis,1.0);
+    namedWindow("raw disparity", WINDOW_AUTOSIZE);
+    imshow("raw disparity", raw_disp_vis);
+    Mat filtered_disp_vis;
+    getDisparityVis(filtered_disp,filtered_disp_vis,1.0);
+    namedWindow("filtered disparity", WINDOW_AUTOSIZE);
+    imshow("filtered disparity", filtered_disp_vis);
+
+    std::cout << __LINE__ << std::endl;
+
+    while(1)
+    {
+        char key = (char)waitKey();
+        if( key == 27 || key == 'q' || key == 'Q') // 'ESC'
+            break;
+    }
+
     t = getTickCount() - t;
     printf("Time elapsed: %fms\n", t*1000/getTickFrequency());
 
     //disp = dispp.colRange(numberOfDisparities, img1p.cols);
     if( alg != STEREO_VAR )
-        disp.convertTo(disp8, CV_8U, 255/(numberOfDisparities*16.));
+        filtered_disp.convertTo(disp8, CV_8U, 255/(numberOfDisparities*16.));
     else
-        disp.convertTo(disp8, CV_8U);
+        filtered_disp.convertTo(disp8, CV_8U);
 
     Mat disp8_3c;
     if (color_display)
-        // cv::applyColorMap(disp8, disp8_3c, COLORMAP_TURBO);
-        cv::applyColorMap(disp8, disp8_3c, 20);
+        cv::applyColorMap(disp8, disp8_3c, COLORMAP_TURBO);
+        //cv::applyColorMap(disp8, disp8_3c, 20);
 
     if(!disparity_filename.empty())
         imwrite(disparity_filename, color_display ? disp8_3c : disp8);
@@ -289,7 +340,7 @@ int main(int argc, char** argv)
         fflush(stdout);
         Mat xyz;
         Mat floatDisp;
-        disp.convertTo(floatDisp, CV_32F, 1.0f / disparity_multiplier);
+        filtered_disp.convertTo(floatDisp, CV_32F, 1.0f / disparity_multiplier);
         reprojectImageTo3D(floatDisp, xyz, Q, true);
         saveXYZ(point_cloud_filename.c_str(), xyz);
         printf("\n");

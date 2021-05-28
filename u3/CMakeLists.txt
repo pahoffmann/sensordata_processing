@@ -6,6 +6,9 @@ include_directories( ${OpenCV_INCLUDE_DIRS} )
 add_executable( StereoCalib capture_images.cpp )
 target_link_libraries( StereoCalib ${OpenCV_LIBS} )
 
+add_executable( StereoMatch stereo_match.cpp )
+target_link_libraries( StereoMatch ${OpenCV_LIBS} )
+
 
 if (NOT EXISTS "${CMAKE_SOURCE_DIR}/opencv/build/bin/example_cpp_stereo_calib")
     message(WARNING "Can't symlink stereo calibration ${CMAKE_SOURCE_DIR}. Have you compiled opencv with 'cmake -DBUILD_EXAMPLES=ON ..'?")

@@ -24,7 +24,7 @@ using namespace cv::ximgproc;
 static void print_help(char** argv)
 {
     printf("\nDemo stereo matching converting L and R images into disparity and point clouds. "
-            "Reading images from webcam \n");
+            "Reading images from webcam. Press \"s\" to save point cloud \n");
     printf("\nUsage: %s <left_image> <right_image> [--algorithm=bm|sgbm|hh|hh4|sgbm3way] [--blocksize=<block_size>]\n"
            "[--max-disparity=<max_disparity>] [--scale=scale_factor>] [-i=<intrinsic_filename>] [-e=<extrinsic_filename>]\n"
            "[--no-display] [--color] [-o=<disparity_image>] [-p=<point_cloud_file>]\n"
@@ -36,7 +36,20 @@ static void saveXYZ(const char* filename, const Mat& mat, const Mat& img)
     const double max_z = 1.0e2;
     const double max_y = 1.0e2;
     const double max_x = 1.0e2;
-    FILE* fp = fopen(filename, "wt");
+
+    fpos_t pos;
+    int pointCount = 0;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    FILE* fp = fopen("temp", "wt");
+    fgetpos(fp, &pos);
+    FILE* fply = fopen(filename, "wt");
+
+    // ply header
+    
+
     for(int y = 0; y < mat.rows; y++)
     {
         for(int x = 0; x < mat.cols; x++)
@@ -48,9 +61,34 @@ static void saveXYZ(const char* filename, const Mat& mat, const Mat& img)
             fprintf(fp, "%f %f %f ", point[0], point[1], point[2]);
             // color is bgr, not rgb
             fprintf(fp, "%u %u %u\n", color[2], color[1], color[0]);
+            pointCount++;
         }
     }
+
     fclose(fp);
+
+    printf("temp file written");
+
+    FILE* fpread = fopen("temp", "rt");
+
+    fprintf(fply, "ply\n");
+    fprintf(fply, "format ascii 1.0\n");
+    fprintf(fply, "element vertex ");
+    fprintf(fply, "%s\n", std::to_string(pointCount).c_str());
+    fprintf(fply, "property float x\n");
+    fprintf(fply, "property float y\n");
+    fprintf(fply, "property float z\n");
+    fprintf(fply, "property uchar red\n");
+    fprintf(fply, "property uchar green\n");
+    fprintf(fply, "property uchar blue\n");
+    fprintf(fply, "end_header\n");
+   
+    while ((read = getline(&line, &len, fpread)) != -1) {
+        fprintf(fply, "%s", line);
+    }
+    
+    fclose(fpread);
+    fclose(fply);
 }
 
 int main(int argc, char** argv)
@@ -67,6 +105,7 @@ int main(int argc, char** argv)
     int SADWindowSize, numberOfDisparities;
     bool no_display;
     bool color_display;
+    bool loop;
     float scale;
 
     Ptr<StereoBM> bm = StereoBM::create(16,9);
@@ -102,6 +141,7 @@ int main(int argc, char** argv)
     SADWindowSize = parser.get<int>("blocksize");
     scale = parser.get<float>("scale");
     no_display = parser.has("no-display");
+    loop = parser.has("loop");
     color_display = parser.has("color");
     if( parser.has("i") )
         intrinsic_filename = parser.get<std::string>("i");
@@ -156,6 +196,8 @@ int main(int argc, char** argv)
     }
 
     Mat img1, img2;
+    int filenameCount = 0;
+
     while(true)
     {
         camera1 >> img1;
@@ -363,16 +405,20 @@ int main(int argc, char** argv)
 
         int key = cv::waitKey(50);
 
-        if(!point_cloud_filename.empty() && key == 27)
+        if(!point_cloud_filename.empty() && key == 115)
         {
-            printf("storing the point cloud...");
+            std::string filename = point_cloud_filename;
+            filename.append(std::to_string(filenameCount));
+            filename.append(".ply");
+            printf("storing the point cloud here: %s", filename.c_str());
             fflush(stdout);
             Mat xyz;
             Mat floatDisp;
             filtered_disp.convertTo(floatDisp, CV_32F, 1.0f / disparity_multiplier);
             reprojectImageTo3D(floatDisp, xyz, Q, true);
-            saveXYZ(point_cloud_filename.c_str(), xyz, left_orig);
+            saveXYZ(filename.c_str(), xyz, left_orig);
             printf("\n");
+            filenameCount++;
         }
 
         if( !no_display )
@@ -398,6 +444,10 @@ int main(int argc, char** argv)
             printf("press ESC key or CTRL+C to close...");
             fflush(stdout);
             printf("\n");
+            
+            if (key == 27){
+                exit(0);
+            }
         }
     }
     

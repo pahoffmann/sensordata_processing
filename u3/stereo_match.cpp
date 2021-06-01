@@ -23,13 +23,15 @@ using namespace cv::ximgproc;
 
 static void print_help(char** argv)
 {
-    printf("\nDemo stereo matching converting L and R images into disparity and point clouds\n");
+    printf("\nDemo stereo matching converting L and R images into disparity and point clouds. "
+            "Reading images from webcam \n");
     printf("\nUsage: %s <left_image> <right_image> [--algorithm=bm|sgbm|hh|hh4|sgbm3way] [--blocksize=<block_size>]\n"
            "[--max-disparity=<max_disparity>] [--scale=scale_factor>] [-i=<intrinsic_filename>] [-e=<extrinsic_filename>]\n"
-           "[--no-display] [--color] [-o=<disparity_image>] [-p=<point_cloud_file>]\n", argv[0]);
+           "[--no-display] [--color] [-o=<disparity_image>] [-p=<point_cloud_file>]\n"
+           "[-sigma=<sigma>] [--loop]", argv[0]);
 }
 
-static void saveXYZ(const char* filename, const Mat& mat)
+static void saveXYZ(const char* filename, const Mat& mat, const Mat& img)
 {
     const double max_z = 1.0e2;
     const double max_y = 1.0e2;
@@ -40,9 +42,12 @@ static void saveXYZ(const char* filename, const Mat& mat)
         for(int x = 0; x < mat.cols; x++)
         {
             Vec3f point = mat.at<Vec3f>(y, x);
+            Vec3b color = img.at<Vec3b>(y, x);
             if(fabs(point[2] - max_z) < FLT_EPSILON || fabs(point[2]) > max_z) continue;
             if(point[0] > max_x || point[1] > max_y || point[2] > max_z) continue;
-            fprintf(fp, "%f %f %f\n", point[0], point[1], point[2]);
+            fprintf(fp, "%f %f %f ", point[0], point[1], point[2]);
+            // color is bgr, not rgb
+            fprintf(fp, "%u %u %u\n", color[2], color[1], color[0]);
         }
     }
     fclose(fp);
@@ -75,7 +80,7 @@ int main(int argc, char** argv)
 
 
     cv::CommandLineParser parser(argc, argv,
-        "{@arg1||}{@arg2||}{help h||}{algorithm||}{max-disparity|0|}{blocksize|0|}{no-display||}{color||}{scale|1|}{i||}{e||}{o||}{p||}{sigma||}");
+        "{@arg1||}{@arg2||}{help h||}{algorithm||}{max-disparity|0|}{blocksize|0|}{no-display||}{color||}{scale|1|}{i||}{e||}{o||}{p||}{sigma||}{loop||}");
     if(parser.has("help"))
     {
         print_help(argv);
@@ -275,7 +280,7 @@ int main(int argc, char** argv)
         
 
 
-        Mat disp, disp8, right_disp, filtered_disp,solved_disp, solved_filtered_disp;
+        Mat disp, disp8, right_disp, filtered_disp, solved_disp, solved_filtered_disp;
         //Mat img1p, img2p, dispp;
         //copyMakeBorder(img1, img1p, 0, 0, numberOfDisparities, 0, IPL_BORDER_REPLICATE);
         //copyMakeBorder(img2, img2p, 0, 0, numberOfDisparities, 0, IPL_BORDER_REPLICATE);
@@ -366,7 +371,7 @@ int main(int argc, char** argv)
             Mat floatDisp;
             filtered_disp.convertTo(floatDisp, CV_32F, 1.0f / disparity_multiplier);
             reprojectImageTo3D(floatDisp, xyz, Q, true);
-            saveXYZ(point_cloud_filename.c_str(), xyz);
+            saveXYZ(point_cloud_filename.c_str(), xyz, left_orig);
             printf("\n");
         }
 

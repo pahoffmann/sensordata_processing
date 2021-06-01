@@ -6,8 +6,8 @@ include_directories( ${OpenCV_INCLUDE_DIRS} )
 add_executable( StereoCalib capture_images.cpp )
 target_link_libraries( StereoCalib ${OpenCV_LIBS} )
 
-add_executable( StereoMatch stereo_match.cpp )
-target_link_libraries( StereoMatch ${OpenCV_LIBS} )
+add_executable( capture stereo_match.cpp )
+target_link_libraries( capture ${OpenCV_LIBS} )
 
 
 if (NOT EXISTS "${CMAKE_SOURCE_DIR}/opencv/build/bin/example_cpp_stereo_calib")
@@ -19,7 +19,5 @@ else()
     file(COPY "${CMAKE_SOURCE_DIR}/opencv/build/bin/example_cpp_stereo_calib" 
          DESTINATION "${DATA_DIR}")
     file(COPY "${CMAKE_SOURCE_DIR}/opencv/samples/data/stereo_calib.xml" 
-         DESTINATION "${DATA_DIR}")
-    file(COPY "${CMAKE_SOURCE_DIR}/opencv/build/bin/example_cpp_stereo_match" 
          DESTINATION "${DATA_DIR}")
 endif()

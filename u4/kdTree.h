@@ -3,7 +3,7 @@
 
 class KDtree {
     public:
-        int pnts;       // 0 for inner nodes, others for leaves
+        int npts;       // 0 for inner nodes, others for leaves
         union {
             struct {
                 double center[3];

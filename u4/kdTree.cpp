@@ -10,8 +10,9 @@ double KDtree::closest_d2;
 double *KDtree::closest;
 double *KDtree::p;
 
+// squared distance
 double Dist2(double *p1, double *p2) {
-    return sqrt(pow(p1[0] - p2[0], 2) + pow(p1[1] - p2[1], 2) + pow(p1[2] - p2[2], 2));
+    return pow(p1[0] - p2[0], 2) + pow(p1[1] - p2[1], 2) + pow(p1[2] - p2[2], 2);
 }
 
 KDtree::KDtree(double **pts, int n) {
@@ -154,17 +155,17 @@ void KDtree::_FindClosest() {
                                                 fabs(p[1] - node.center[1]) - node.dy),
                                             fabs(p[2] - node.center[2]) - node.dz);
     // wenn bounding box weiter weg als Distanz zu bisher gefundenem nächsten Punkt
-    if (approx_dist_bbox >= 0 && sqrt(approx_dist_bbox) >= closest_d2) 
+    if (approx_dist_bbox >= 0 && pow(approx_dist_bbox, 2) >= closest_d2) 
         return;
     double myd = node.center[node.splitaxis] - p[node.splitaxis];
     // Gehe zum Weitersuchen in die Unterbäume
     if (myd >= 0.0f) {
         node.child1->_FindClosest();
         // if point near other child tree, then also search in this child tree
-        if (sqrt(myd) < closest_d2) node.child2->_FindClosest();
+        if (pow(myd, 2) < closest_d2) node.child2->_FindClosest();
     } else {
         node.child2->_FindClosest();
-        if (sqrt(myd) < closest_d2) node.child1->_FindClosest();
+        if (pow(myd, 2) < closest_d2) node.child1->_FindClosest();
     }
 }
 

@@ -44,3 +44,7 @@ build/*
 u3/data/*
 u3/data/
 /data/
+data/
+
+# Mac OS
+.DS_Store

@@ -50,6 +50,23 @@ void testTree()
     }
 
     KDtree testTree(points, 8);
+    //std::cout << testTree.node.child1->node.child1->leaf.p[0][0]<< " | " << testTree.node.child1->node.child1->leaf.p[0][1] << " | " << testTree.node.child1->node.child1->leaf.p[0][1] << std::endl;
+    //std::cout << testTree.node.child2->node.child2->leaf.p[1][0]<< " | " << testTree.node.child2->node.child2->leaf.p[1][1] << " | " << testTree.node.child2->node.child2->leaf.p[1][1] << std::endl;
+    double testPoint[3] =  {0.0, 0.0, 0.5};
+    auto nN = testTree.FindClosest(testPoint, 0.8);
+    if(nN != NULL)
+    {
+        std::cout << "Closest: " << nN[0] << " | " << nN[1] << " | " << nN[2] << std::endl; 
+    }
+
+    auto nNrs = testTree.kNearestNeighbors(testPoint, 2.5, 4);
+    for(int i = 0; i < 4; i++)
+    {
+        if(nNrs[i]!= NULL)
+        {
+            std::cout << nNrs[i][0] << " | " << nNrs[i][1] << " | " << nNrs[i][2] << std::endl;
+        }
+    }
 }
 
 int main (int argc, char **argv) {
@@ -87,11 +104,19 @@ int main (int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+
     //count lines
     int num_points = std::count(std::istreambuf_iterator<char>(file), 
              std::istreambuf_iterator<char>(), '\n');
 
     std::cout << "Num Points: " << num_points << std::endl;
+
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+    std::cout << "Time difference [Line Count] = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
 
     file.close();
     file.open(input_file_name);
@@ -103,7 +128,7 @@ int main (int argc, char **argv) {
     double **points;
     points = new double*[num_points];
 
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    begin = std::chrono::steady_clock::now();
 
 
     for (int i = 0; i < num_points; i++) {
@@ -137,7 +162,7 @@ int main (int argc, char **argv) {
 
     std::cout << "finished reading the points " << std::endl;
 
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    end = std::chrono::steady_clock::now();
 
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 

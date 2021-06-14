@@ -1,13 +1,8 @@
 #include "kdTree.h"
-#include <string.h>
-#include <algorithm>
-#include <functional>
-#include <iostream>
-#include <cmath>
-#include <algorithm>
 
 double KDtree::closest_d2;
 double *KDtree::closest;
+double **KDtree::kNearest;
 double *KDtree::p;
 
 // squared distance
@@ -130,6 +125,126 @@ KDtree::KDtree(double **pts, int n) {
 
 KDtree::~KDtree() {
 
+}
+
+double **KDtree::kNearestNeighbors(double *_p, double maxdist2, int k)
+{
+    std::vector<std::pair<double*, double>> nearestVec;
+    kNearest = new double*[k];
+    closest = NULL; closest_d2 = maxdist2; p = _p;
+    _kNearestNeighbors(nearestVec);
+
+    std::cout << "num possible vertices: " << nearestVec.size() << std::endl;
+
+    //sort found vertices
+    std::sort(nearestVec.begin(), nearestVec.end(), 
+                [](std::pair<double*, double> a, std::pair<double*, double> b)
+                {
+                    return a.second < b.second;
+                });
+
+    for(int i = 0; i < std::min((int)nearestVec.size(), k); i++)
+    {
+        kNearest[i] = new double[3];
+        kNearest[i][0] = nearestVec[i].first[0];
+        kNearest[i][1] = nearestVec[i].first[1];
+        kNearest[i][2] = nearestVec[i].first[2];
+    }
+
+    return kNearest;
+
+}
+
+
+void KDtree::_kNearestNeighbors( std::vector<std::pair<double*, double>>& nearest)
+{
+    if (npts) {
+        for (int i = 0; i < npts; i++) {
+            double myd2 = Dist2(p, leaf.p[i]);
+            if (myd2 < closest_d2) {
+                nearest.push_back(std::make_pair(leaf.p[i], myd2));
+            }
+        }
+        return;
+    }
+
+    // define criteria wether to dig deep into other subtrees..
+    // our criteria is obvious, but may not be the fastest, as there are special cases, when subtrees are visited unnecessarily
+    // we just assume, that the distances between two of the x, y and z components from the point need to be individually smaller than the radius of the search
+    // but if we leave out subtrees we leave them out with our well earned right #2ndAmendment
+    // for the left and right subtree individually
+
+    if(node.child1->npts > 8)
+    {
+        double x1 = node.child1->node.center[0] - (node.child1->node.dx/2);
+        double x2 = node.child1->node.center[0] + (node.child1->node.dx/2);
+        double y1 = node.child1->node.center[1] - (node.child1->node.dy/2);
+        double y2 = node.child1->node.center[1] + (node.child1->node.dy/2);
+        double z1 = node.child1->node.center[2] - (node.child1->node.dz/2);
+        double z2 = node.child1->node.center[2] + (node.child1->node.dz/2);
+
+        int cond_counter = 0;
+
+        if(closest_d2 > pow(abs(p[0] - x1), 2) || closest_d2 > pow(abs(p[0] - x2), 2))
+        {
+            cond_counter++;
+        }
+
+        if(closest_d2 > pow(abs(p[1] - y1), 2) || closest_d2 > pow(abs(p[1] - y2), 2))
+        {
+            cond_counter++;
+        }
+
+        if(closest_d2 > pow(abs(p[2] - z1), 2) || closest_d2 > pow(abs(p[2] - z2), 2))
+        {
+            cond_counter++;
+        }
+
+        if(cond_counter >= 2)
+        {
+            node.child1->_kNearestNeighbors(nearest);
+        }
+    } 
+    else {
+        node.child1->_kNearestNeighbors(nearest);
+    }   
+
+    if(node.child2->npts > 8)
+    {
+        double x1 = node.child2->node.center[0] - (node.child2->node.dx/2);
+        double x2 = node.child2->node.center[0] + (node.child2->node.dx/2);
+        double y1 = node.child2->node.center[1] - (node.child2->node.dy/2);
+        double y2 = node.child2->node.center[1] + (node.child2->node.dy/2);
+        double z1 = node.child2->node.center[2] - (node.child2->node.dz/2);
+        double z2 = node.child2->node.center[2] + (node.child2->node.dz/2);
+
+        int cond_counter = 0;
+
+        if(closest_d2 > pow(abs(p[0] - x1), 2) || closest_d2 > pow(abs(p[0] - x2), 2))
+        {
+            cond_counter++;
+        }
+
+        if(closest_d2 > pow(abs(p[1] - y1), 2) || closest_d2 > pow(abs(p[1] - y2), 2))
+        {
+            cond_counter++;
+        }
+
+        if(closest_d2 > pow(abs(p[2] - z1), 2) || closest_d2 > pow(abs(p[2] - z2), 2))
+        {
+            cond_counter++;
+        }
+
+        if(cond_counter >= 2)
+        {
+            node.child2->_kNearestNeighbors(nearest);
+        }
+    } 
+    else {
+        node.child2->_kNearestNeighbors(nearest);
+    }  
+
+    return;  
 }
 
 double *KDtree::FindClosest(double *_p, double maxdist2) {

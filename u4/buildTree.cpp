@@ -176,5 +176,23 @@ int main (int argc, char **argv) {
 
     std::cout << "Time difference [Build] = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
+    double testVec[3] = {0,0,0};
+    begin = std::chrono::steady_clock::now();
+
+    auto nNrs = testTree.kNearestNeighbors(testVec, 1, 10);
+    end = std::chrono::steady_clock::now();
+
+    std::cout << "Time difference [Search] = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+
+
+    for(int i = 0; i < 10; i++)
+    {
+        if(nNrs[i]!= NULL)
+        {
+            std::cout << nNrs[i][0] << " | " << nNrs[i][1] << " | " << nNrs[i][2] << std::endl;
+        }
+    }
+
     return 0;
 }

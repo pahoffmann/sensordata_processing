@@ -2,6 +2,7 @@
 #include <string.h>
 #include <algorithm>
 #include <functional>
+#include <iostream>
 
 KDtree::KDtree(double **pts, int n) {
 
@@ -22,7 +23,7 @@ KDtree::KDtree(double **pts, int n) {
 
     // bounding box
     // initial values
-    int xSmall, xBig, ySmall, yBig, zSmall, zBig;
+    double xSmall, xBig, ySmall, yBig, zSmall, zBig;
     xSmall = pts[0][0];
     xBig = pts[0][0];
     ySmall = pts[0][1];
@@ -31,7 +32,8 @@ KDtree::KDtree(double **pts, int n) {
     zBig = pts[0][2];
 
     for (int i = 0; i < n; i++) {
-        double *pt = pts[i];
+        double *pt = (double*) malloc(n * sizeof(double *));
+        pt = pts[i];
         if (pt[0] < xSmall) xSmall = pt[0];
         else if (pt[0] > xBig) xBig = pt[0];
         if (pt[1] < ySmall) ySmall = pt[1];
@@ -43,10 +45,14 @@ KDtree::KDtree(double **pts, int n) {
     node.dx = xBig - xSmall;
     node.dy = yBig - ySmall;
     node.dz = zBig - zSmall;
-    node.center[0] = node.dx / 2;
-    node.center[1] = node.dy / 2;
-    node.center[2] = node.dz / 2;
+    node.center[0] = xBig - node.dx / 2;
+    node.center[1] = yBig - node.dy / 2;
+    node.center[2] = zBig - node.dz / 2;
 
+    /*
+    printf("dx: %f, dy: %f, dz: %f, cx: %f, cy: %f, cz: %f\n", 
+        node.dx, node.dy, node.dz, node.center[0], node.center[1], node.center[2]);
+    */
 
     // split on longest axis
     if (node.dx > node.dy)
@@ -59,7 +65,54 @@ KDtree::KDtree(double **pts, int n) {
     double splitval = node.center[node.splitaxis];
     double **left, **right;
 
+    // check how many elements for left and right tree
+    // to allocate enough memory
+    // left: <=, right: >
+    int leftCnt = 0, rightCnt = 0;
+    for (int i = 0; i < n; i++) {
+        if (pts[i][node.splitaxis] <= splitval)
+            leftCnt++;
+        else 
+            rightCnt++;
+    }
 
+    left = (double **) malloc(leftCnt * sizeof(double*));
+    /*for (int i = 0; i < leftCnt; i++) {
+        left[i] = (double*) malloc(3 * sizeof(double));
+    }*/
+    right = (double **) malloc(rightCnt * sizeof(double*));
+    /*for (int i = 0; i < rightCnt; i++) {
+        right[i] = (double*) malloc(3 * sizeof(double));
+    }*/
+    
+    /*
+    // check left, right, n values
+    printf("leftCnt: %d, rightCnt: %d, n: %d\n", leftCnt, rightCnt, n);
+    if (node.splitaxis == 0) {
+        printf("Axis: %d, xSmall: %f, xBig: %f, splitval: %f\n", node.splitaxis, xSmall, xBig, splitval);
+    } else if (node.splitaxis == 1) {
+        printf("Axis: %d, ySmall: %f, yBig: %f, splitval: %f\n", node.splitaxis, ySmall, yBig, splitval);
+    } else if (node.splitaxis == 2) {
+        printf("Axis: %d, zSmall: %f, zBig: %f, splitval: %f\n", node.splitaxis, zSmall, zBig, splitval);
+    }*/    
+
+    // fill the trees with values
+    leftCnt = 0; rightCnt = 0;
+    for (int i = 0; i < n; i++) {
+        if (pts[i][node.splitaxis] <= splitval) {
+            // copy data from pts to left
+            //memcpy(left[leftCnt++], pts[i], sizeof(double *));
+            left[leftCnt++] = pts[i];
+        }
+        else {
+            //memcpy(right[rightCnt++], pts[i], sizeof(double *));
+            right[rightCnt++] = pts[i];
+
+        }
+    }
+
+    node.child1 = new KDtree(left, leftCnt);
+    node.child2 = new KDtree(right, rightCnt);
 
 }
 

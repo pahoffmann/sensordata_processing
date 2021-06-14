@@ -32,14 +32,15 @@ KDtree::KDtree(double **pts, int n) {
     zBig = pts[0][2];
 
     for (int i = 0; i < n; i++) {
-        double *pt = (double*) malloc(n * sizeof(double *));
-        pt = pts[i];
+        //double *pt = (double*) malloc(n * sizeof(double *));
+        double *pt = pts[i];
         if (pt[0] < xSmall) xSmall = pt[0];
         else if (pt[0] > xBig) xBig = pt[0];
         if (pt[1] < ySmall) ySmall = pt[1];
         else if (pt[1] > yBig) yBig = pt[1];
         if (pt[2] < zSmall) zSmall = pt[2];
         else if (pt[2] > zBig) zBig = pt[2];
+        //free(pt);
     }
 
     node.dx = xBig - xSmall;

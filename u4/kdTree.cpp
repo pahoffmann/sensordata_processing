@@ -3,6 +3,16 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <cmath>
+#include <algorithm>
+
+double KDtree::closest_d2;
+double *KDtree::closest;
+double *KDtree::p;
+
+double Dist2(double *p1, double *p2) {
+    return sqrt(pow(p1[0] - p2[0], 2) + pow(p1[1] - p2[1], 2) + pow(p1[2] - p2[2], 2));
+}
 
 KDtree::KDtree(double **pts, int n) {
 
@@ -122,11 +132,40 @@ KDtree::~KDtree() {
 }
 
 double *KDtree::FindClosest(double *_p, double maxdist2) {
-
+    closest = NULL; closest_d2 = maxdist2; p = _p;
+    _FindClosest();
+    return closest;
 }
 
 void KDtree::_FindClosest() {
-    
+    if (npts) {
+        for (int i = 0; i < npts; i++) {
+            double myd2 = Dist2(p, leaf.p[i]);
+            if (myd2 < closest_d2) {
+                closest_d2 = myd2;
+                closest = leaf.p[i];
+            }
+        }
+        return;
+    }
+
+    // maximale Distanz des Punktes zur aktuellen Bounding Box
+    double approx_dist_bbox = std::max(std::max(fabs(p[0] - node.center[0]) - node.dx,
+                                                fabs(p[1] - node.center[1]) - node.dy),
+                                            fabs(p[2] - node.center[2]) - node.dz);
+    // wenn bounding box weiter weg als Distanz zu bisher gefundenem nächsten Punkt
+    if (approx_dist_bbox >= 0 && sqrt(approx_dist_bbox) >= closest_d2) 
+        return;
+    double myd = node.center[node.splitaxis] - p[node.splitaxis];
+    // Gehe zum Weitersuchen in die Unterbäume
+    if (myd >= 0.0f) {
+        node.child1->_FindClosest();
+        // if point near other child tree, then also search in this child tree
+        if (sqrt(myd) < closest_d2) node.child2->_FindClosest();
+    } else {
+        node.child2->_FindClosest();
+        if (sqrt(myd) < closest_d2) node.child1->_FindClosest();
+    }
 }
 
 bool sortPoints(double *p1, double *p2, int axis) {

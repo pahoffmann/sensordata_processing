@@ -228,13 +228,13 @@ int main (int argc, char **argv) {
     end = std::chrono::steady_clock::now();
     std::cout << "Time difference [Search] = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
-    //std::cout << "DEBUG: " << result[0] << ", " << result[1] << ", " << result[2] << std::endl;
-    //std::cout << "DEBUG: " << result[3] << ", " << result[4] << ", " << result[5] << std::endl;
+    std::cout << "DEBUG: " << result[0] << ", " << result[1] << ", " << result[2] << std::endl;
+    std::cout << "DEBUG: " << result[3] << ", " << result[4] << ", " << result[5] << std::endl;
 
     for(int i = 0; i < nn; i++)
     {
         std::cout << dataset[result[i]] << " | " << dataset[result[i]+1] << " | " << dataset[result[i]+2] << std::endl;
-    }
+        }
 
     return 0;
 }

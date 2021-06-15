@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <sstream>
 #include <chrono>
+#include <flann/flann.h>
 
 /*
 double **readPly() {
@@ -127,6 +128,9 @@ int main (int argc, char **argv) {
 
     double **points;
     points = new double*[num_points];
+    // flann data representation
+    double *dataset;
+    dataset = new double[num_points * 3];
 
     begin = std::chrono::steady_clock::now();
 
@@ -157,6 +161,9 @@ int main (int argc, char **argv) {
         points[i][0] = x;
         points[i][1] = y;
         points[i][2] = z;
+        dataset[i*3] = x;
+        dataset[i*3+1] = y;
+        dataset[i*3+2] = z;
 
     }
 
@@ -177,21 +184,56 @@ int main (int argc, char **argv) {
     std::cout << "Time difference [Build] = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
     double testVec[3] = {0,0,0};
+    int nn = 5;        // number of nearest neighbors
+    double r2 = 3.f;     // search radius
     begin = std::chrono::steady_clock::now();
 
-    auto nNrs = testTree.kNearestNeighbors(testVec, 1, 10);
+    auto nNrs = testTree.kNearestNeighbors(testVec, r2, nn);
     end = std::chrono::steady_clock::now();
 
     std::cout << "Time difference [Search] = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
-
-
-    for(int i = 0; i < 10; i++)
+    for(int i = 0; i < nn; i++)
     {
         if(nNrs[i]!= NULL)
         {
             std::cout << nNrs[i][0] << " | " << nNrs[i][1] << " | " << nNrs[i][2] << std::endl;
         }
+    }
+
+
+    std::cout << "Testing flann implementation" << std::endl;
+    struct FLANNParameters p;
+    int *result;
+    double* dists;
+    flann_index_t index_id;
+    float speedup;
+
+    result = (int*) malloc(nn*num_points*sizeof(int));
+    dists = (double*) malloc(nn*num_points*sizeof(double));
+    p = DEFAULT_FLANN_PARAMETERS;
+    p.algorithm = FLANN_INDEX_KDTREE;
+    p.trees = 1;
+    p.log_level = FLANN_LOG_INFO;
+    p.checks = 256;
+    p.target_precision = 1.f;
+    p.sorted = 1;
+
+    std::cout << "building index" << std::endl;
+    index_id = flann_build_index_double(dataset, num_points, 3, &speedup, &p);
+
+    std::cout << "searching nearest neigbors with flann" << std::endl;
+    begin = std::chrono::steady_clock::now();
+    flann_radius_search_double(index_id, testVec, result, dists, num_points, r2, &p);
+    end = std::chrono::steady_clock::now();
+    std::cout << "Time difference [Search] = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+    //std::cout << "DEBUG: " << result[0] << ", " << result[1] << ", " << result[2] << std::endl;
+    //std::cout << "DEBUG: " << result[3] << ", " << result[4] << ", " << result[5] << std::endl;
+
+    for(int i = 0; i < nn; i++)
+    {
+        std::cout << dataset[result[i]] << " | " << dataset[result[i]+1] << " | " << dataset[result[i]+2] << std::endl;
     }
 
     return 0;

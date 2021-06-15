@@ -75,9 +75,9 @@ int main (int argc, char **argv) {
         ("filename", po::value<std::string>()->required(), "Type the name of the file which includes the points.")
         ("numargs", po::value<int>()->required(), "How many parameters are there each row?!")
         ("kn", po::value<int>()->required(), "How many neighbors do you wanna look at my m8?!")
-        ("px", po::value<double>(), "orientation x")
-        ("py", po::value<double>(), "orientation y")
-        ("pz", po::value<double>(), "orientation z");
+        ("px", po::value<double>()->default_value(0.f), "orientation x")
+        ("py", po::value<double>()->default_value(0.f), "orientation y")
+        ("pz", po::value<double>()->default_value(0.f), "orientation z");
 
   // parse arguments and save them in the variable map (vm)
     po::store(po::parse_command_line(argc, argv, desc), vm);

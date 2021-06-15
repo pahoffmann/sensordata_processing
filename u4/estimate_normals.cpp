@@ -222,9 +222,13 @@ int main (int argc, char **argv) {
             Eigen::Vector3d cur_point(nNrs[j][0],nNrs[j][1],nNrs[j][2]);
             // std::cout << "Cur Point" << std::endl;
             // std::cout << cur_point << std::endl;
-            auto transposed = (cur_point - centroid).transpose();
+            auto coVec = cur_point - centroid;
+            auto transposed = coVec.transpose();
+            // std::cout << "coVec: " << coVec << std::endl;
             std::cout << "transposed: " << transposed << std::endl;
-            covariance_matrix += (cur_point - centroid).cross(transposed);
+            auto crossVec = coVec.cross(transposed);
+            std::cout << "crossVec: " << crossVec << std::endl;
+            covariance_matrix += crossVec;
 
             std::cout << covariance_matrix << std::endl;
         }

@@ -60,7 +60,8 @@ void testTree()
         std::cout << "Closest: " << nN[0] << " | " << nN[1] << " | " << nN[2] << std::endl; 
     }
 
-    auto nNrs = testTree.kNearestNeighbors(testPoint, 2.5, 4);
+    int num_neighbors = 0;
+    auto nNrs = testTree.kNearestNeighbors(testPoint, 2.5, 4, num_neighbors);
     for(int i = 0; i < 4; i++)
     {
         if(nNrs[i]!= NULL)
@@ -188,7 +189,8 @@ int main (int argc, char **argv) {
     double r2 = 3.f;     // search radius
     begin = std::chrono::steady_clock::now();
 
-    auto nNrs = testTree.kNearestNeighbors(testVec, r2, nn);
+    int num_neighbors = 0;
+    auto nNrs = testTree.kNearestNeighbors(testVec, r2, nn, num_neighbors);
     end = std::chrono::steady_clock::now();
 
     std::cout << "Time difference [Search] = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;

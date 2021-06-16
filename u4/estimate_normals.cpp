@@ -18,52 +18,6 @@ void printUsage()
     std::cout << "For testmode just enter 'test' behind the executable" << std::endl;
 }
 
-/**
- * @brief creates a cube between (0,0,0) and (1,1,1) and creates a kd tree from its points. checks if the points are saved correctly
- * 
- */
-void testTree()
-{
-    double **points;
-    points = new double*[8];
-    int i = 0;
-    
-    for(int x = 0; x <= 1; x++)
-    {
-        for(int y = 0; y <= 1; y++)
-        {
-            for(int z = 0; z <= 1; z++)
-            {
-
-                points[i] = new double[3];
-                points[i][0] = (double)x;
-                points[i][1] = (double)y;
-                points[i][2] = (double)z;
-
-                i++;     
-            }
-        }
-    }
-
-    KDtree testTree(points, 8);
-    //std::cout << testTree.node.child1->node.child1->leaf.p[0][0]<< " | " << testTree.node.child1->node.child1->leaf.p[0][1] << " | " << testTree.node.child1->node.child1->leaf.p[0][1] << std::endl;
-    //std::cout << testTree.node.child2->node.child2->leaf.p[1][0]<< " | " << testTree.node.child2->node.child2->leaf.p[1][1] << " | " << testTree.node.child2->node.child2->leaf.p[1][1] << std::endl;
-    double testPoint[3] =  {0.0, 0.0, 0.5};
-    auto nN = testTree.FindClosest(testPoint, 0.8);
-    if(nN != NULL)
-    {
-        std::cout << "Closest: " << nN[0] << " | " << nN[1] << " | " << nN[2] << std::endl; 
-    }
-
-    auto nNrs = testTree.kNearestNeighbors(testPoint, 2.5, 4);
-    for(int i = 0; i < 4; i++)
-    {
-        if(nNrs[i]!= NULL)
-        {
-            std::cout << nNrs[i][0] << " | " << nNrs[i][1] << " | " << nNrs[i][2] << std::endl;
-        }
-    }
-}
 
 int main (int argc, char **argv) {
     namespace po = boost::program_options;
@@ -253,23 +207,24 @@ int main (int argc, char **argv) {
             begin = std::chrono::steady_clock::now();
         }
         // get knn of point
-        auto nNrs = myTree.kNearestNeighbors(points[i], r2, kn);
+        int num_neighbors = 0;
+        auto nNrs = myTree.kNearestNeighbors(points[i], r2, kn, num_neighbors);
 
 
-        Eigen::Vector3d cur_vec(nNrs[i][0],nNrs[i][1],nNrs[i][2]);
+        Eigen::Vector3d cur_vec(points[i][0],points[i][1],points[i][2]);
         centroid = Eigen::Vector3d::Zero();
         covariance_matrix = Eigen::Matrix3d::Zero();
 
 
         //calculate centroid
-        for(int j = 0; j < kn; j++)
+        for(int j = 0; j < num_neighbors; j++)
         {
             centroid += Eigen::Vector3d(nNrs[j][0],nNrs[j][1],nNrs[j][2]);            
         }
 
         centroid /= kn;
 
-        for(int j = 0; j < kn; j++)
+        for(int j = 0; j < num_neighbors; j++)
         {
             // calc current point moved by the clouds centroid
             Eigen::Vector3d cur_point(nNrs[j][0],nNrs[j][1],nNrs[j][2]);
@@ -278,7 +233,7 @@ int main (int argc, char **argv) {
 
         }
 
-        covariance_matrix /= kn; // fully calculated
+        covariance_matrix /= num_neighbors; // fully calculated
         
         //std::cout << covariance_matrix << std::endl;
 
@@ -306,11 +261,15 @@ int main (int argc, char **argv) {
         // add normal to normal array
         Eigen::Vector3d normal_direction(px, py, pz);
         Eigen::Vector3d normal(max_eigen_vec.x(), max_eigen_vec.y(), max_eigen_vec.z());
-        if(normal.dot(normal_direction) < 0)
+
+        if(normal.dot(normal_direction - cur_vec) < 0)
         {
+
             normal *= -1;
         }
+
         vertex_normals.push_back(normal);
+
     }
 
 

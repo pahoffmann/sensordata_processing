@@ -127,7 +127,7 @@ KDtree::~KDtree() {
 
 }
 
-double **KDtree::kNearestNeighbors(double *_p, double maxdist2, int k)
+double **KDtree::kNearestNeighbors(double *_p, double maxdist2, int k, int &num_neighbors)
 {
     std::vector<std::pair<double*, double>> nearestVec;
     kNearest = new double*[k];
@@ -150,6 +150,8 @@ double **KDtree::kNearestNeighbors(double *_p, double maxdist2, int k)
         kNearest[i][1] = nearestVec[i].first[1];
         kNearest[i][2] = nearestVec[i].first[2];
     }
+
+    num_neighbors = std::min((int)nearestVec.size(), k);
 
     return kNearest;
 

@@ -26,7 +26,7 @@ class KDtree {
         KDtree (double **pts, int n);
         ~KDtree ();
         double *FindClosest (double *_p, double maxdist2);
-        double **kNearestNeighbors(double *_p, double maxdist2, int k);
+        double **kNearestNeighbors(double *_p, double maxdist2, int k, int &num_neighbors);
     private:
         static double *closest;
         static double closest_d2;

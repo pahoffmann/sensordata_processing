@@ -78,7 +78,9 @@ int main (int argc, char **argv) {
         ("kn", po::value<int>()->required(), "How many neighbors do you wanna look at my m8?!")
         ("px", po::value<double>()->default_value(0.f), "orientation x")
         ("py", po::value<double>()->default_value(0.f), "orientation y")
-        ("pz", po::value<double>()->default_value(0.f), "orientation z");
+        ("pz", po::value<double>()->default_value(0.f), "orientation z")
+        ("numpoints", po::value<int>()->required(), "num points which will be evaluated")
+        ("r2", po::value<double>()->default_value(0.1f), "squared radius");
 
   // parse arguments and save them in the variable map (vm)
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -143,6 +145,9 @@ int main (int argc, char **argv) {
     double py = vm["py"].as<double>();
     double pz = vm["pz"].as<double>();
 
+    int input_num_points = vm["numpoints"].as<int>();
+    num_points = std::min(num_points, input_num_points);
+
     double x,y,z;
     int r, g, b, a;
     std::string line;
@@ -174,6 +179,22 @@ int main (int argc, char **argv) {
                 break;
             }
         }
+        else if(vm["numargs"].as<int>() == 3)
+        {
+            if(!(file >> x >> y >> z))
+            {
+                std::cout << "error when reading the data." << std::endl;
+                break;
+            }
+        }
+        else if(vm["numargs"].as<int>() == 5)
+        {
+            if(!(file >> x >> y >> z >> r >> g))
+            {
+                std::cout << "error when reading the data." << std::endl;
+                break;
+            }
+        }
 
         //std::cout << "Point: " << x << " | " << y << " | " << z << std::endl;;
 
@@ -200,7 +221,7 @@ int main (int argc, char **argv) {
 
     std::cout << "Time difference [Build] = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
-    double r2 = 1.0f;
+    double r2 = vm["r2"].as<double>();
         
     
     Eigen::Matrix3d covariance_matrix = Eigen::Matrix3d::Zero();
@@ -215,7 +236,7 @@ int main (int argc, char **argv) {
     // pca stuff
     begin = std::chrono::steady_clock::now();
 
-    for (int i = 0; i < 500; i++) {
+    for (int i = 0; i < num_points; i++) {
 
         if(i % one_percent == 0)
         {
@@ -223,16 +244,17 @@ int main (int argc, char **argv) {
             counter ++;
         }
 
-        if(i % 100 == 0)
+        if(i % 1000 == 0)
         {
             end = std::chrono::steady_clock::now();
             std::cout << i << std::endl;
-            auto diff = std::chrono::duration_cast<std::chrono::seconds>(end - begin).count();
-            std::cout << "approx time left [s]: " << ((num_points - i) / 100) * diff << std::endl;
+            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+            std::cout << "approx time left [s]: " << ((num_points - i) / 1000.0) * (diff/1000.0) << std::endl;
             begin = std::chrono::steady_clock::now();
         }
         // get knn of point
         auto nNrs = myTree.kNearestNeighbors(points[i], r2, kn);
+
 
         Eigen::Vector3d cur_vec(nNrs[i][0],nNrs[i][1],nNrs[i][2]);
         centroid = Eigen::Vector3d::Zero();
@@ -277,18 +299,23 @@ int main (int argc, char **argv) {
         
         //std::cout << "Max coeff:" << max_index << std::endl;
 
-        auto max_eigen_vec = eigen_vectors.col(max_index);
+        auto max_eigen_vec = eigen_vectors.col(0);
         
         // std::cout << "Max eigenvec: " << std::endl << max_eigen_vec << std::endl;
 
         // add normal to normal array
-        vertex_normals.push_back(Eigen::Vector3d(max_eigen_vec.x(), max_eigen_vec.y(), max_eigen_vec.z()));
+        Eigen::Vector3d normal_direction(px, py, pz);
+        Eigen::Vector3d normal(max_eigen_vec.x(), max_eigen_vec.y(), max_eigen_vec.z());
+        if(normal.dot(normal_direction) < 0)
+        {
+            normal *= -1;
+        }
+        vertex_normals.push_back(normal);
     }
 
 
     CultureInvariantPlyWriter writer("test.ply", points, vertex_normals);
     writer.Start();
-
 
     
     return 0;

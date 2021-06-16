@@ -148,6 +148,11 @@ int main (int argc, char **argv) {
 
     double **points;
     points = new double*[num_points];
+
+
+    std::vector<Eigen::Vector3d> vertex_normals;
+
+    Eigen::Vector3d cloud_centroid = Eigen::Vector3d::Zero();
     begin = std::chrono::steady_clock::now();
 
     for (int i = 0; i < num_points; i++) {
@@ -176,7 +181,12 @@ int main (int argc, char **argv) {
         points[i][0] = x;
         points[i][1] = y;
         points[i][2] = z;
+
+        cloud_centroid += Eigen::Vector3d(x,y,z);
     }
+
+    // calc centroid
+    cloud_centroid /= num_points;
 
     std::cout << "finished reading the points " << std::endl;
 
@@ -197,7 +207,7 @@ int main (int argc, char **argv) {
     double r2 = 1.0f;
         
     
-    Eigen::Vector3d covariance_matrix = Eigen::Vector3d::Zero();
+    Eigen::Matrix3d covariance_matrix = Eigen::Matrix3d::Zero();
     Eigen::Vector3d centroid(0,0,0);
 
     // pca stuff
@@ -205,30 +215,30 @@ int main (int argc, char **argv) {
         // get knn of point
         auto nNrs = myTree.kNearestNeighbors(points[i], r2, kn);
 
+        Eigen::Vector3d cur_vec(nNrs[i][0],nNrs[i][1],nNrs[i][2]);
         centroid = Eigen::Vector3d::Zero();
-        covariance_matrix = Eigen::Vector3d::Zero();
+        covariance_matrix = Eigen::Matrix3d::Zero();
 
 
         //calculate centroid
         for(int j = 0; j < kn; j++)
         {
-            centroid += Eigen::Vector3d(nNrs[j][0],nNrs[j][1],nNrs[j][2]);            
+            centroid += Eigen::Vector3d(nNrs[j][0],nNrs[j][1],nNrs[j][2]) - cloud_centroid;            
         }
 
         centroid /= kn;
 
         for(int j = 0; j < kn; j++)
         {
+            // calc current point moved by the clouds centroid
             Eigen::Vector3d cur_point(nNrs[j][0],nNrs[j][1],nNrs[j][2]);
+            cur_point -= cloud_centroid;
             // std::cout << "Cur Point" << std::endl;
             // std::cout << cur_point << std::endl;
-            auto coVec = cur_point - centroid;
-            auto transposed = coVec.transpose();
-            // std::cout << "coVec: " << coVec << std::endl;
-            std::cout << "transposed: " << transposed << std::endl;
-            auto crossVec = coVec.cross(transposed);
-            std::cout << "crossVec: " << crossVec << std::endl;
-            covariance_matrix += crossVec;
+            Eigen::Vector3d coVec = cur_point - centroid; // sub neighbors centroid
+
+            std::cout << __LINE__ << std::endl;
+            covariance_matrix += coVec * coVec.transpose();
 
             std::cout << covariance_matrix << std::endl;
         }
@@ -237,8 +247,10 @@ int main (int argc, char **argv) {
         
         std::cout << centroid << std::endl;
         std::cout << covariance_matrix << std::endl;
-
     }
+
+
+    
 
 
     

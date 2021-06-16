@@ -134,7 +134,7 @@ double **KDtree::kNearestNeighbors(double *_p, double maxdist2, int k)
     closest = NULL; closest_d2 = maxdist2; p = _p;
     _kNearestNeighbors(nearestVec);
 
-    std::cout << "num possible vertices: " << nearestVec.size() << std::endl;
+    //std::cout << "num possible vertices: " << nearestVec.size() << std::endl;
 
     //sort found vertices
     std::sort(nearestVec.begin(), nearestVec.end(), 

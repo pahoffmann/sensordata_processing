@@ -6,6 +6,7 @@
 #include <sstream>
 #include <chrono>
 #include <boost/program_options.hpp>
+#include "culture_invariant_ply_writer.h"
 
 /**
  * @brief prints the usage of the tree building stuff
@@ -152,7 +153,6 @@ int main (int argc, char **argv) {
 
     std::vector<Eigen::Vector3d> vertex_normals;
 
-    Eigen::Vector3d cloud_centroid = Eigen::Vector3d::Zero();
     begin = std::chrono::steady_clock::now();
 
     for (int i = 0; i < num_points; i++) {
@@ -181,12 +181,8 @@ int main (int argc, char **argv) {
         points[i][0] = x;
         points[i][1] = y;
         points[i][2] = z;
-
-        cloud_centroid += Eigen::Vector3d(x,y,z);
     }
 
-    // calc centroid
-    cloud_centroid /= num_points;
 
     std::cout << "finished reading the points " << std::endl;
 
@@ -210,8 +206,31 @@ int main (int argc, char **argv) {
     Eigen::Matrix3d covariance_matrix = Eigen::Matrix3d::Zero();
     Eigen::Vector3d centroid(0,0,0);
 
+
+    std::cout << "Begin estimating normals" << std::endl;
+    int counter = 0;
+    int one_percent = num_points/100;
+
+
     // pca stuff
-    for (int i = 0; i < num_points; i++) {
+    begin = std::chrono::steady_clock::now();
+
+    for (int i = 0; i < 500; i++) {
+
+        if(i % one_percent == 0)
+        {
+            std::cout << counter << " %" << std::endl;
+            counter ++;
+        }
+
+        if(i % 100 == 0)
+        {
+            end = std::chrono::steady_clock::now();
+            std::cout << i << std::endl;
+            auto diff = std::chrono::duration_cast<std::chrono::seconds>(end - begin).count();
+            std::cout << "approx time left [s]: " << ((num_points - i) / 100) * diff << std::endl;
+            begin = std::chrono::steady_clock::now();
+        }
         // get knn of point
         auto nNrs = myTree.kNearestNeighbors(points[i], r2, kn);
 
@@ -223,7 +242,7 @@ int main (int argc, char **argv) {
         //calculate centroid
         for(int j = 0; j < kn; j++)
         {
-            centroid += Eigen::Vector3d(nNrs[j][0],nNrs[j][1],nNrs[j][2]) - cloud_centroid;            
+            centroid += Eigen::Vector3d(nNrs[j][0],nNrs[j][1],nNrs[j][2]);            
         }
 
         centroid /= kn;
@@ -232,25 +251,43 @@ int main (int argc, char **argv) {
         {
             // calc current point moved by the clouds centroid
             Eigen::Vector3d cur_point(nNrs[j][0],nNrs[j][1],nNrs[j][2]);
-            cur_point -= cloud_centroid;
-            // std::cout << "Cur Point" << std::endl;
-            // std::cout << cur_point << std::endl;
             Eigen::Vector3d coVec = cur_point - centroid; // sub neighbors centroid
-
-            std::cout << __LINE__ << std::endl;
             covariance_matrix += coVec * coVec.transpose();
 
-            std::cout << covariance_matrix << std::endl;
         }
 
-        covariance_matrix /= kn;
+        covariance_matrix /= kn; // fully calculated
         
-        std::cout << centroid << std::endl;
-        std::cout << covariance_matrix << std::endl;
+        //std::cout << covariance_matrix << std::endl;
+
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(covariance_matrix);
+
+        if (eigensolver.info() != Eigen::Success) 
+        {
+            continue;
+        }
+        
+        auto eigen_values = eigensolver.eigenvalues();
+        //std::cout << "Eigenvalues: " << std::endl << eigen_values << std::endl;
+        auto eigen_vectors = eigensolver.eigenvectors();
+        //std::cout << "Eigenvectors: " << std::endl << eigen_vectors << std::endl;
+
+        int max_index;
+        eigen_values.maxCoeff(&max_index);
+        
+        //std::cout << "Max coeff:" << max_index << std::endl;
+
+        auto max_eigen_vec = eigen_vectors.col(max_index);
+        
+        // std::cout << "Max eigenvec: " << std::endl << max_eigen_vec << std::endl;
+
+        // add normal to normal array
+        vertex_normals.push_back(Eigen::Vector3d(max_eigen_vec.x(), max_eigen_vec.y(), max_eigen_vec.z()));
     }
 
 
-    
+    CultureInvariantPlyWriter writer("test.ply", points, vertex_normals);
+    writer.Start();
 
 
     

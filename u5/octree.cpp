@@ -3,9 +3,131 @@
 double Octree::maxVoxSideLength;
 
 // internal private constructor, used to build the octree
-Octree::Octree(std::vector<Eigen::Vector3d*> &points)
+Octree::Octree(std::vector<Eigen::Vector3d*> &points, double new_sidelengths[3], Eigen::Vector3d &new_centroid)
 {
+    // first calc new values:
+    this->sideLength[0] = new_sidelengths[0];
+    this->sideLength[1] = new_sidelengths[1];
+    this->sideLength[2] = new_sidelengths[2];
 
+    // new centroid
+    this->center = new_centroid;
+    
+    double len_x = this->sideLength[0];
+    double len_y = this->sideLength[1];
+    double len_z = this->sideLength[2];
+
+    // if it is a leaf 
+    if(std::max(std::max(len_x, len_y), len_z) < maxVoxSideLength)
+    {
+        for(auto &p: points)
+        {
+            this->points.push_back(*p);
+        }
+
+        this->is_leaf = true;
+
+        return;
+    }
+
+    std::vector<Eigen::Vector3d*> tlf, trf, tlb, trb, blf, brf, blb, brb; // pointers for 8 subtrees
+
+    
+    if(points.size() > 0)
+    {
+        // create new octrees
+        // determine points which need to be passed on to the children
+        // determine center points, sidelengths etc.
+        for(auto &p : points)
+        {   
+            // bottom [b]
+            if(p->y() < this->center.y())
+            {
+                if(p->x() < this->center.x()) // left [l]
+                {
+                    if(p->z() < this->center.z()) // back [b]
+                    {
+                        blb.push_back(p);
+                    }
+                    else // front [f]
+                    {
+                        blf.push_back(p);
+                    }
+                }
+                else // right [r]
+                {
+                    if(p->z() < this->center.z()) // back[b]
+                    {
+                        brb.push_back(p);
+                    }
+                    else //front[f]
+                    {
+                        brf.push_back(p);
+                    }
+                }
+            }
+            else // top [t]
+            {
+                if(p->x() < this->center.x()) // left [l]
+                {
+                    if(p->z() < this->center.z()) // back [b]
+                    {
+                        tlb.push_back(p);
+                    }
+                    else // front [f]
+                    {
+                        tlf.push_back(p);
+                    }
+                }
+                else // right [r]
+                {
+                    if(p->z() < this->center.z()) // back[b]
+                    {
+                        trb.push_back(p);
+                    }
+                    else //front[f]
+                    {  
+                        trf.push_back(p);
+                    }
+                }
+            }
+            
+        }
+
+        std::cout << "Subtree point sizes: " << std::endl
+                  << blb.size() << std::endl
+                  << blf.size() << std::endl
+                  << brb.size() << std::endl
+                  << brf.size() << std::endl
+                  << tlb.size() << std::endl
+                  << tlf.size() << std::endl
+                  << trb.size() << std::endl
+                  << trf.size() << std::endl;
+
+        //top left front to bottom right back
+
+
+        double new_sidelength[3] = {len_x / 2, len_y / 2, len_z / 2};
+
+        // calculate new centroids
+        Eigen::Vector3d tlf_a = this->center + Eigen::Vector3d(-len_x / 2, len_y/2, len_z /2);
+        Eigen::Vector3d trf_a = this->center + Eigen::Vector3d(len_x / 2, len_y/2, len_z /2);
+        Eigen::Vector3d tlb_a = this->center + Eigen::Vector3d(-len_x / 2, len_y/2, -len_z /2);
+        Eigen::Vector3d trb_a = this->center + Eigen::Vector3d(len_x / 2, len_y/2, -len_z /2);
+        Eigen::Vector3d blf_a = this->center + Eigen::Vector3d(-len_x / 2, -len_y/2, len_z /2);
+        Eigen::Vector3d brf_a = this->center + Eigen::Vector3d(len_x / 2, -len_y/2, len_z /2);
+        Eigen::Vector3d blb_a = this->center + Eigen::Vector3d(-len_x / 2, -len_y/2, -len_z /2);
+        Eigen::Vector3d brb_a = this->center + Eigen::Vector3d(len_x / 2, -len_y/2, -len_z /2);
+
+        this->children[0] = new Octree(tlf, new_sidelength, tlf_a);
+        this->children[1] = new Octree(trf, new_sidelength, trf_a);
+        this->children[2] = new Octree(tlb, new_sidelength, tlb_a);
+        this->children[3] = new Octree(trb, new_sidelength, trb_a);
+        this->children[4] = new Octree(blf, new_sidelength, blf_a);
+        this->children[5] = new Octree(brf, new_sidelength, brf_a);
+        this->children[6] = new Octree(blb, new_sidelength, blb_a);
+        this->children[7] = new Octree(brb, new_sidelength, brb_a);
+    }
 }
 
 /**
@@ -148,7 +270,9 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
     this->sideLength[2] = len_z;
     
     std::vector<Eigen::Vector3d*> tlf, trf, tlb, trb, blf, brf, blb, brb; // pointers for 8 subtrees
-
+    
+    begin = std::chrono::steady_clock::now();
+    
     if(input_points.size() > 0)
     {
         // create new octrees
@@ -219,7 +343,34 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
                   << tlf.size() << std::endl
                   << trb.size() << std::endl
                   << trf.size() << std::endl;
+
+        //top left front to bottom right back
+
+        double new_sidelength[3] = {len_x / 2, len_y / 2, len_z / 2};
+
+        // calculate new centroids
+        Eigen::Vector3d tlf_a = this->center + Eigen::Vector3d(-len_x / 2, len_y/2, len_z /2);
+        Eigen::Vector3d trf_a = this->center + Eigen::Vector3d(len_x / 2, len_y/2, len_z /2);
+        Eigen::Vector3d tlb_a = this->center + Eigen::Vector3d(-len_x / 2, len_y/2, -len_z /2);
+        Eigen::Vector3d trb_a = this->center + Eigen::Vector3d(len_x / 2, len_y/2, -len_z /2);
+        Eigen::Vector3d blf_a = this->center + Eigen::Vector3d(-len_x / 2, -len_y/2, len_z /2);
+        Eigen::Vector3d brf_a = this->center + Eigen::Vector3d(len_x / 2, -len_y/2, len_z /2);
+        Eigen::Vector3d blb_a = this->center + Eigen::Vector3d(-len_x / 2, -len_y/2, -len_z /2);
+        Eigen::Vector3d brb_a = this->center + Eigen::Vector3d(len_x / 2, -len_y/2, -len_z /2);
+
+        this->children[0] = new Octree(tlf, new_sidelength, tlf_a);
+        this->children[1] = new Octree(trf, new_sidelength, trf_a);
+        this->children[2] = new Octree(tlb, new_sidelength, tlb_a);
+        this->children[3] = new Octree(trb, new_sidelength, trb_a);
+        this->children[4] = new Octree(blf, new_sidelength, blf_a);
+        this->children[5] = new Octree(brf, new_sidelength, brf_a);
+        this->children[6] = new Octree(blb, new_sidelength, blb_a);
+        this->children[7] = new Octree(brb, new_sidelength, brb_a);
     }
+
+    end = std::chrono::steady_clock::now();
+
+    std::cout << "Used time to create first layers = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
     // iterate through the points once, capture bounding box, center, sidelengths etc.
 

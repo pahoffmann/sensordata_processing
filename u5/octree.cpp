@@ -100,15 +100,15 @@ Octree::Octree(std::vector<Eigen::Vector3d*> &points, double new_sidelengths[3],
             
         }
 
-        std::cout << "Subtree point sizes: " << std::endl
-                  << blb.size() << std::endl
-                  << blf.size() << std::endl
-                  << brb.size() << std::endl
-                  << brf.size() << std::endl
-                  << tlb.size() << std::endl
-                  << tlf.size() << std::endl
-                  << trb.size() << std::endl
-                  << trf.size() << std::endl;
+        // std::cout << "Subtree point sizes: " << std::endl
+        //           << blb.size() << std::endl
+        //           << blf.size() << std::endl
+        //           << brb.size() << std::endl
+        //           << brf.size() << std::endl
+        //           << tlb.size() << std::endl
+        //           << tlf.size() << std::endl
+        //           << trb.size() << std::endl
+        //           << trf.size() << std::endl;
 
         //top left front to bottom right back
 
@@ -339,15 +339,15 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
             
         }
 
-        std::cout << "Subtree point sizes: " << std::endl
-                  << blb.size() << std::endl
-                  << blf.size() << std::endl
-                  << brb.size() << std::endl
-                  << brf.size() << std::endl
-                  << tlb.size() << std::endl
-                  << tlf.size() << std::endl
-                  << trb.size() << std::endl
-                  << trf.size() << std::endl;
+        // std::cout << "Subtree point sizes: " << std::endl
+        //           << blb.size() << std::endl
+        //           << blf.size() << std::endl
+        //           << brb.size() << std::endl
+        //           << brf.size() << std::endl
+        //           << tlb.size() << std::endl
+        //           << tlf.size() << std::endl
+        //           << trb.size() << std::endl
+        //           << trf.size() << std::endl;
 
         //top left front to bottom right back
 
@@ -378,6 +378,7 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
     std::cout << "Used time to create octree = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
     std::cout << "Num points per leaf [avg]: " << Octree::num_leafpoints_acc / Octree::num_leafs << std::endl;
+    std::cout << "Num leafs: " << Octree::num_leafs << std::endl;
     // iterate through the points once, capture bounding box, center, sidelengths etc.
 
 }
@@ -385,4 +386,18 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
 Octree::~Octree()
 {
     // empty
+}
+
+/**
+ * @brief Reconstructs the surface of the pointcloud via marching cubes, utilizig the octree structure
+ * 
+ * @param vertices 
+ * @param indices 
+ * @param nVert 
+ * @param nFaces 
+ */
+void Octree::reconstruct(float* vertices, float* indices, int& nVert, int& nFaces)
+{
+    //todo: implement this
+    return;
 }

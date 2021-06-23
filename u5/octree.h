@@ -23,7 +23,7 @@ class Octree {
         Octree *children[8]; // every node contains 8 leafs
         std::vector<Eigen::Vector3d> points; // only filled, if it is a leaf
         bool is_leaf = false; // determines if the current node is a leaf (e.g. it has no further subtrees)
-
+        void reconstruct(float* vertices, float* indices, int& nVert, int& nFaces);
         Octree(std::string filename, int num_args = 7, double maxSideLength = -1); // private constructor for reeding the file
         ~Octree();
 

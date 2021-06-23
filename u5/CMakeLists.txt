@@ -8,7 +8,7 @@ include_directories( /usr/local/include )
 
 set(SOURCES octree.cpp distance_function.cpp)
 add_executable( octree_test test_octree.cpp octree.cpp)
-target_link_libraries(octree Eigen3::Eigen)
+target_link_libraries(octree_test Eigen3::Eigen)
 
 # add_executable( estimate_normals estimate_normals.cpp kdTree.cpp culture_invariant_ply_writer.cpp )
 # target_link_libraries (estimate_normals Eigen3::Eigen ${Boost_LIBRARIES})

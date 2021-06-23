@@ -1,6 +1,9 @@
 #include "octree.h"
 
 double Octree::maxVoxSideLength;
+std::vector<Eigen::Vector3d> Octree::point_buf;
+int Octree::num_leafpoints_acc;
+int Octree::num_leafs;
 
 // internal private constructor, used to build the octree
 Octree::Octree(std::vector<Eigen::Vector3d*> &points, double new_sidelengths[3], Eigen::Vector3d &new_centroid)
@@ -20,6 +23,9 @@ Octree::Octree(std::vector<Eigen::Vector3d*> &points, double new_sidelengths[3],
     // if it is a leaf 
     if(std::max(std::max(len_x, len_y), len_z) < maxVoxSideLength)
     {
+        Octree::num_leafs++;
+        Octree::num_leafpoints_acc += (int)points.size();
+
         for(auto &p: points)
         {
             this->points.push_back(*p);
@@ -154,7 +160,6 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
     double x,y,z;
     int r, g, b, a;
     std::string line;
-    std::vector<Eigen::Vector3d> input_points;
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
@@ -197,11 +202,11 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
 
         //std::cout << "Point: " << x << " | " << y << " | " << z << std::endl;;
 
-        input_points.push_back(Eigen::Vector3d(x,y,z));
+        point_buf.push_back(Eigen::Vector3d(x,y,z));
     }
 
 
-    std::cout << "finished reading the points. Num points:  "<< input_points.size() << std::endl;
+    std::cout << "finished reading the points. Num points:  "<< point_buf.size() << std::endl;
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
@@ -217,7 +222,7 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
     min_x = min_y = min_z = std::numeric_limits<double>::max();
 
     Eigen::Vector3d centroid = Eigen::Vector3d::Zero();
-    for(auto &p : input_points)
+    for(auto &p : Octree::point_buf)
     {
         // bounding box
 
@@ -236,12 +241,12 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
         //std::cout << centroid << std::endl;
     }
 
-    centroid /= input_points.size(); // calc centroid
+    centroid /= point_buf.size(); // calc centroid
 
     end = std::chrono::steady_clock::now();
 
  
-    std::cout << "Finished itering " << input_points.size() << " points. Centroid is: " << std::endl << centroid << std::endl;
+    std::cout << "Finished itering " << point_buf.size() << " points. Centroid is: " << std::endl << centroid << std::endl;
     std::cout << "Used time for O(n) iteration = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
     double len_x = max_x - min_x;
@@ -257,7 +262,7 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
         max = std::max(max, len_z);
 
         std::cout << "Max side length: " << max << std::endl;
-        maxVoxSideLength = max / (input_points.size() / 10); // approx 10 points in every leaf?
+        maxVoxSideLength = max / (point_buf.size() / 100); // approx ?? points in every leaf?
 
         std::cout << "Max Vox side length: " << maxVoxSideLength << std::endl;
     }
@@ -273,12 +278,12 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
     
     begin = std::chrono::steady_clock::now();
     
-    if(input_points.size() > 0)
+    if(point_buf.size() > 0)
     {
         // create new octrees
         // determine points which need to be passed on to the children
         // determine center points, sidelengths etc.
-        for(auto &p : input_points)
+        for(auto &p : point_buf)
         {   
             // bottom [b]
             if(p.y() < centroid.y())
@@ -370,8 +375,9 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
 
     end = std::chrono::steady_clock::now();
 
-    std::cout << "Used time to create first layers = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+    std::cout << "Used time to create octree = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
+    std::cout << "Num points per leaf [avg]: " << Octree::num_leafpoints_acc / Octree::num_leafs << std::endl;
     // iterate through the points once, capture bounding box, center, sidelengths etc.
 
 }

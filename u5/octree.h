@@ -13,7 +13,9 @@ class Octree {
 
     private:
         static double maxVoxSideLength;
-
+        static std::vector<Eigen::Vector3d> point_buf;
+        static int num_leafs;
+        static int num_leafpoints_acc;
         Octree(std::vector<Eigen::Vector3d*> &points, double prev_sidelengths[3], Eigen::Vector3d &prev_centroid); // private constructor for building the tree
     public:
         Eigen::Vector3d center;

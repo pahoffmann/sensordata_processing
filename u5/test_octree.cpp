@@ -2,5 +2,11 @@
 
 int main(int argc, char** argv)
 {
-    Octree octree("panagia_kera_interior.txt");
+    if(argc == 2)
+    {
+        Octree octree("panagia_kera_interior.txt", 7, std::atof(argv[1]));  
+    }
+    else {
+        Octree octree("panagia_kera_interior.txt", 7, 0.1);
+    }
 }

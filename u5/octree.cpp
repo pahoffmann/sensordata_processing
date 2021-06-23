@@ -4,6 +4,7 @@ double Octree::maxVoxSideLength;
 std::vector<Eigen::Vector3d> Octree::point_buf;
 int Octree::num_leafpoints_acc;
 int Octree::num_leafs;
+DistanceFunction *Octree::dist_func;
 
 // internal private constructor, used to build the octree
 Octree::Octree(std::vector<Eigen::Vector3d*> &points, double new_sidelengths[3], Eigen::Vector3d &new_centroid)
@@ -213,6 +214,8 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
     file.close();
+
+    dist_func = new DistanceFunction(point_buf);
 
     std::cout << "Start iterating through the box to determine the needed parameters." << std::endl;
     begin = std::chrono::steady_clock::now();

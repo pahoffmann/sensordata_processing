@@ -12,7 +12,7 @@
 
 class DistanceFunction {
     private:
-        flann::Index<flann::L2<float>> *index;
+        flann::Index<flann::L2<double>> *index;
     public:
         float distance(float x, float y, float z, int k = 1);
         DistanceFunction(std::vector<Eigen::Vector3d> &points);

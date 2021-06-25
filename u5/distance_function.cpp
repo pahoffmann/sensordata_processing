@@ -1,7 +1,7 @@
 #include "distance_function.h"
 
 
-DistanceFunction::DistanceFunction(std::vector<Eigen::Vector3d> &points)
+DistanceFunction::DistanceFunction(std::vector<Eigen::Vector3d> &points, int ki, int kd, int kn) : kd(kd), kn(kn), ki(ki)
 {
     // first: calculate normals
 
@@ -46,7 +46,7 @@ DistanceFunction::DistanceFunction()
 }
 
 
-double DistanceFunction::distance(double x, double y, double z, int k, int kn)
+double DistanceFunction::distance(double x, double y, double z, int k)
 {
     // find nearest neighbor (k nearst), go through each of them, calculate distance via (-1|+1) * (p-c)*n
 
@@ -100,7 +100,7 @@ double DistanceFunction::distance(double x, double y, double z, int k, int kn)
         covariance_matrix = Eigen::Matrix3d::Zero();
 
         // // calculate the KNNs
-        DistanceFunction::index->knnSearch(query_point, next_indices, dists, kn, flann::SearchParams(flann::FLANN_CHECKS_UNLIMITED));
+        DistanceFunction::index->knnSearch(query_point, next_indices, dists, this->kn, flann::SearchParams(flann::FLANN_CHECKS_UNLIMITED));
 
         std::cout << __LINE__ << std::endl;
 

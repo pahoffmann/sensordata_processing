@@ -143,7 +143,7 @@ Octree::Octree(std::vector<Eigen::Vector3d*> &points, double new_sidelengths[3],
  * 
  * @param filename   name of the file containing the point information
  */
-Octree::Octree(std::string filename, int num_args, double maxSideLength)
+Octree::Octree(std::string filename, int num_args, double maxSideLength, int ki, int kd, int kn)
 {
     maxVoxSideLength = maxSideLength;
 
@@ -215,7 +215,7 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
 
     file.close();
 
-    dist_func = new DistanceFunction(point_buf);
+    dist_func = new DistanceFunction(point_buf, ki, kd, kn);
     double dist = dist_func->distance(-0.942292, 0.001739, -1.290601,10);
 
     std::cout << "Start iterating through the box to determine the needed parameters." << std::endl;
@@ -400,7 +400,7 @@ Octree::~Octree()
  * @param nVert 
  * @param nFaces 
  */
-void Octree::reconstruct(float* vertices, float* indices, int& nVert, int& nFaces)
+void Octree::reconstruct(double* vertices, int* indices, int& nVert, int& nFaces)
 {
     //todo: implement this
     return;

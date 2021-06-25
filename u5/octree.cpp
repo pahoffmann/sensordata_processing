@@ -172,7 +172,7 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
         {
             if(!(file >> x >> y >> z >> r >> g >> b >> a))
             {
-                std::cout << "error when reading the data." << std::endl;
+                std::cout << "finished reading the data" << std::endl;
                 break;
             }
         }
@@ -180,7 +180,7 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
         {
             if(!(file >> x >> y >> z >> r >> g >> b))
             {
-                std::cout << "error when reading the data." << std::endl;
+                std::cout << "finished reading the data" << std::endl;
                 break;
             }
         }
@@ -188,7 +188,7 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
         {
             if(!(file >> x >> y >> z))
             {
-                std::cout << "error when reading the data." << std::endl;
+                std::cout << "finished reading the data" << std::endl;
                 break;
             }
         }
@@ -196,7 +196,7 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
         {
             if(!(file >> x >> y >> z >> r >> g))
             {
-                std::cout << "error when reading the data." << std::endl;
+                std::cout << "finished reading the data" << std::endl;
                 break;
             }
         }
@@ -216,6 +216,7 @@ Octree::Octree(std::string filename, int num_args, double maxSideLength)
     file.close();
 
     dist_func = new DistanceFunction(point_buf);
+    double dist = dist_func->distance(-0.942292, 0.001739, -1.290601,10);
 
     std::cout << "Start iterating through the box to determine the needed parameters." << std::endl;
     begin = std::chrono::steady_clock::now();

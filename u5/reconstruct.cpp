@@ -18,8 +18,30 @@ int main(int argc, char **argv)
         ("kn", po::value<int>()->default_value(20), "k nearest neighbors normal estimation")
         ("vl", po::value<double>()->default_value(0.05), "max voxel length");
 
-  // parse arguments and save them in the variable map (vm)
+    // parse arguments and save them in the variable map (vm)
+    try 
+    {
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        if(vm.count("help")) 
+        {
+                std::cout << desc << std::endl;
+                return EXIT_SUCCESS;
+        }
+
+        po::notify(vm);
+    }
+    catch(po::error& e)
+    {
+        std::cerr << "ERROR: " << e.what() << std::endl << std::endl; 
+        std::cerr << desc << std::endl; 
+        return EXIT_FAILURE;
+    }
+    
     po::store(po::parse_command_line(argc, argv, desc), vm);
+    if(vm.count("help")) {
+        std::cout << desc << std::endl;
+        return EXIT_SUCCESS;
+    }
 
     // read params
     std::string filename = vm["filename"].as<std::string>();
@@ -27,12 +49,12 @@ int main(int argc, char **argv)
     int kd = vm["kd"].as<int>();
     int ki = vm["ki"].as<int>();
     int kn = vm["kn"].as<int>();
-    int vl = vm["vl"].as<double>();
+    double vl = vm["vl"].as<double>();
 
     Octree octree(filename, numargs, vl, ki, kd, kn);
-    double *vertices;
-    int *indices;
-    int nVert, nFaces;
+    std::vector<double> vertices;
+    std::vector<int> indices;
+    int nVert = 0, nFaces = 0;
 
     // reconstruct
     octree.reconstruct(vertices, indices, nVert, nFaces);
@@ -40,4 +62,7 @@ int main(int argc, char **argv)
     //write to ply
     CultureInvariantPlyWriter writer("test.ply", vertices, indices, nVert, nFaces);
     writer.Start();
+
+
+    return EXIT_SUCCESS;
 }

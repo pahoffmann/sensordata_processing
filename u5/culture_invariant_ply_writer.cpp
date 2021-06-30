@@ -1,7 +1,7 @@
 #include "culture_invariant_ply_writer.h"
 
 
-CultureInvariantPlyWriter::CultureInvariantPlyWriter(std::string file, double *vertices, int *indices, int nVert, int nFaces)
+CultureInvariantPlyWriter::CultureInvariantPlyWriter(std::string file, std::vector<double> &vertices, std::vector<int> &indices, int nVert, int nFaces)
 {
     out_file_name = file;
     this->vertices = vertices;
@@ -22,15 +22,15 @@ void CultureInvariantPlyWriter::Start()
     file << "ply" << std::endl;
     file << "format ascii 1.0" << std::endl;
     file << "comment made by joe mama" << std::endl;
-    file << "element vertex " << nVert << std::endl;
+    file << "element vertex " << vertices.size() / 3 << std::endl;
     file << "property double x" << std::endl;
     file << "property double y" << std::endl;
     file << "property double z" << std::endl;
-    file << "element face " << nFaces << std::endl;
+    file << "element face " << indices.size() / 3 << std::endl;
     file << "property list uchar int vertex_indices" << std::endl;
     file << "end_header" << std::endl;
 
-    for(int i = 0; i < nVert; i+=3)
+    for(int i = 0; i < vertices.size(); i+=3)
     {   
         std::string x = std::to_string(vertices[i]);
         std::string y = std::to_string(vertices[i+1]);
@@ -54,8 +54,8 @@ void CultureInvariantPlyWriter::Start()
         file << x << " " << y << " " << z << std::endl;
     }
 
-    for (int i = 0; i < nFaces; i+=3) {
-        file << indices[i] << indices[i+1] << indices[i+2] << std::endl;
+    for (int i = 0; i < indices.size(); i+=3) {
+        file << 3 << " " <<  indices[i] << " " << indices[i+1] << " " << indices[i+2] << std::endl;
     }
 
     file.close();

@@ -27,6 +27,7 @@ int main (int argc, char **argv) {
 
 
     desc.add_options()
+        ("help", "produce help message")
         ("filename", po::value<std::string>()->required(), "Type the name of the file which includes the points.")
         ("numargs", po::value<int>()->required(), "How many parameters are there each row?!")
         ("kn", po::value<int>()->required(), "How many neighbors do you wanna look at my m8?!")
@@ -36,38 +37,11 @@ int main (int argc, char **argv) {
         ("numpoints", po::value<int>()->required(), "num points which will be evaluated")
         ("r2", po::value<double>()->default_value(0.1f), "squared radius");
 
-  // parse arguments and save them in the variable map (vm)
+    // parse arguments and save them in the variable map (vm)
     po::store(po::parse_command_line(argc, argv, desc), vm);
     
-    /*
-    std::string input(argv[1]);
 
-    if(input.find("test") != std::string::npos)
-    {
-
-        std::cout << "Using test mode" << std::endl;
-        testTree();
-        return EXIT_SUCCESS;
-    }
-
-
-    if(argc != 3)
-    {
-        std::cout << "insufficient number of input arguments" << std::endl;
-        printUsage();
-
-        return EXIT_FAILURE;
-    }
-
-    std::string input_file_name = argv[1];
-    int num_arguments = atoi(argv[2]);
-    std::cout << "Input file name: " << input_file_name << std::endl;
-    std::cout << "Input file arguments: " << num_arguments << std::endl; 
-    std::ifstream file(input_file_name);
-
-    */
-
-   std::ifstream file(vm["filename"].as<std::string>());
+    std::ifstream file(vm["filename"].as<std::string>());
     
     // check ig the file could be opened
     if(!file.is_open())

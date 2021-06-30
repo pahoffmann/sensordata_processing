@@ -38,6 +38,7 @@ DistanceFunction::DistanceFunction(std::vector<Eigen::Vector3d> &points, int ki,
 DistanceFunction::~DistanceFunction()
 {
     delete[] dataset_.ptr();
+    delete index;
 }
 
 DistanceFunction::DistanceFunction()
@@ -70,11 +71,11 @@ double DistanceFunction::distance(double x, double y, double z, int k)
     // calculate the KNNs
     DistanceFunction::index->knnSearch(query_point, indices, dists, k, flann::SearchParams(flann::FLANN_CHECKS_UNLIMITED));
 
-    std::cout << "vector sizes " << indices.size() << " | " << indices[0].size() << std::endl;
+    //std::cout << "vector sizes " << indices.size() << " | " << indices[0].size() << std::endl;
 
     end = std::chrono::steady_clock::now();
 
-    std::cout << "[DistanceFunction] Time used for knn search = " << std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count() << "[ns]" << std::endl;
+    //std::cout << "[DistanceFunction] Time used for knn search = " << std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count() << "[ns]" << std::endl;
     
     // calculate normals on demand
 
@@ -84,17 +85,17 @@ double DistanceFunction::distance(double x, double y, double z, int k)
     Eigen::Vector3d centroid;
     Eigen::Matrix3d covariance_matrix;
 
-    std::cout << "[DistanceFunction] calculating normals for the on demand neighbors" << std::endl;
+    //std::cout << "[DistanceFunction] calculating normals for the on demand neighbors" << std::endl;
 
     for(int i = 0; i < indices[0].size(); i++)
     {
-        std::cout << __LINE__ << std::endl;
+        //std::cout << __LINE__ << std::endl;
 
         query_point[0][0] = dataset_[indices[0][i]][0];
         query_point[0][1] = dataset_[indices[0][i]][1];
         query_point[0][2] = dataset_[indices[0][i]][2];
 
-        std::cout << __LINE__ << std::endl;
+        //std::cout << __LINE__ << std::endl;
 
         centroid = Eigen::Vector3d::Zero();
         covariance_matrix = Eigen::Matrix3d::Zero();
@@ -102,7 +103,7 @@ double DistanceFunction::distance(double x, double y, double z, int k)
         // // calculate the KNNs
         DistanceFunction::index->knnSearch(query_point, next_indices, dists, this->kn, flann::SearchParams(flann::FLANN_CHECKS_UNLIMITED));
 
-        std::cout << __LINE__ << std::endl;
+        //std::cout << __LINE__ << std::endl;
 
 
 
@@ -112,7 +113,7 @@ double DistanceFunction::distance(double x, double y, double z, int k)
             centroid += Eigen::Vector3d(dataset_[next_indices[0][j]][0], dataset_[next_indices[0][j]][1], dataset_[next_indices[0][j]][2]);            
         }
 
-        std::cout << __LINE__ << std::endl;
+        //std::cout << __LINE__ << std::endl;
 
 
         centroid /= kn;
@@ -126,7 +127,7 @@ double DistanceFunction::distance(double x, double y, double z, int k)
 
         }
 
-        std::cout << __LINE__ << std::endl;
+        //std::cout << __LINE__ << std::endl;
 
 
         covariance_matrix /=  next_indices[0].size(); // fully calculated
@@ -136,7 +137,7 @@ double DistanceFunction::distance(double x, double y, double z, int k)
         Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(covariance_matrix);
 
 
-        std::cout << __LINE__ << std::endl;
+        //std::cout << __LINE__ << std::endl;
 
         if (eigensolver.info() != Eigen::Success) 
         {
@@ -148,7 +149,7 @@ double DistanceFunction::distance(double x, double y, double z, int k)
         auto eigen_vectors = eigensolver.eigenvectors();
         //std::cout << "Eigenvectors: " << std::endl << eigen_vectors << std::endl;
 
-        std::cout << __LINE__ << std::endl;
+        //std::cout << __LINE__ << std::endl;
 
 
         int max_index;
@@ -160,13 +161,13 @@ double DistanceFunction::distance(double x, double y, double z, int k)
         
         // std::cout << "Max eigenvec: " << std::endl << max_eigen_vec << std::endl;
 
-        std::cout << __LINE__ << std::endl;
+        //std::cout << __LINE__ << std::endl;
 
         // add normal to normal array
-        Eigen::Vector3d normal_direction(x, y, z);
+        Eigen::Vector3d normal_direction(0, 0, 0);
         Eigen::Vector3d normal(max_eigen_vec.x(), max_eigen_vec.y(), max_eigen_vec.z());
 
-        std::cout << __LINE__ << std::endl;
+        //std::cout << __LINE__ << std::endl;
 
         if(normal.dot(normal_direction - Eigen::Vector3d(dataset_[indices[0][i]][0], dataset_[indices[0][i]][1], dataset_[indices[0][i]][2])) < 0)
         {
@@ -177,32 +178,46 @@ double DistanceFunction::distance(double x, double y, double z, int k)
         normals.push_back(normal);
     }
 
-    std::cout << "[DistanceFunction] finished calculating the normals" << std::endl;
+    //std::cout << "[DistanceFunction] finished calculating the normals" << std::endl;
 
     // calculate the distance function from hoppe for each of those..
 
     // for each nearest neighbor: average distances
-    std::cout << __LINE__ << std::endl;
+    //std::cout << __LINE__ << std::endl;
 
     double avg_dist = 0;
 
     for(int i = 0; i < indices[0].size(); i++)
     {
         Eigen::Vector3d cur_vec(dataset_[indices[0][i]][0], dataset_[indices[0][i]][1], dataset_[indices[0][i]][2]);
-        std::cout << "cur vec: " << cur_vec << std::endl;
-        std::cout << "cur normal:" << normals[i] << std::endl;
+        // std::cout << "Point: " << x << " | " << y <<  " | " << z << std::endl;
+        // std::cout << "cur vec: " << cur_vec << std::endl;
+        // std::cout << "cur normal:" << normals[i] << std::endl;
 
         double distance = (Eigen::Vector3d(x,y,z) - cur_vec).dot(normals[i]);
 
-        std::cout << "[DistanceFunction] Calculated distance: " << distance << std::endl;
+        //std::cout << "[DistanceFunction] Calculated distance: " << distance << std::endl;
 
         avg_dist += distance;
     }
 
-    std::cout << __LINE__ << std::endl;
+    //std::cout << __LINE__ << std::endl;
 
 
     avg_dist /= indices[0].size();
+
+    if(avg_dist < 0.5 && avg_dist > 0)
+    {   
+        //std::cout << "[DistanceFunction] AVERAGE: " << avg_dist << std::endl;
+    }
+
+    if(avg_dist < 0)
+    {
+        //std::cout << "kleiner allah " << std::endl;
+    }
+    else{
+        //std::cout << "größer allah" << std::endl;
+    }
 
     delete[] query_point.ptr();
 

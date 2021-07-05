@@ -402,7 +402,7 @@ Octree::~Octree()
 void Octree::reconstruct(std::vector<double>& vertices, std::vector<int>& indices, int& nVert, int& nFaces)
 {
 
-    if(this->is_leaf)
+    if(this->is_leaf && this->points.size() > 0)
     {
 
         nVert++;
@@ -443,7 +443,6 @@ void Octree::reconstruct(std::vector<double>& vertices, std::vector<int>& indice
         dists[5] = dist_func->distance(center_x + side_x / 2, center_y - side_y / 2, center_z - side_z / 2, Octree::kd);
         dists[6] = dist_func->distance(center_x + side_x / 2, center_y + side_y / 2, center_z - side_z / 2, Octree::kd);
         dists[7] = dist_func->distance(center_x - side_x / 2, center_y + side_y / 2, center_z - side_z / 2, Octree::kd);
-
         
         int cubeIndex = 0;
         for(int i = 0; i < 8; i++)
@@ -470,8 +469,8 @@ void Octree::reconstruct(std::vector<double>& vertices, std::vector<int>& indice
             this->center + Eigen::Vector3d(-side_xh, 0,        -side_zh),
             this->center + Eigen::Vector3d(-side_xh, -side_yh, 0),
             this->center + Eigen::Vector3d(side_xh,  -side_yh, 0),
-            this->center + Eigen::Vector3d(side_xh,  side_yh, 0),
-            this->center + Eigen::Vector3d(-side_xh, side_yh, 0)
+            this->center + Eigen::Vector3d(-side_xh,  side_yh, 0),
+            this->center + Eigen::Vector3d(side_xh,   side_yh, 0)
         };
 
         
@@ -504,6 +503,7 @@ void Octree::reconstruct(std::vector<double>& vertices, std::vector<int>& indice
 
         return;
     }
+    else if(this->is_leaf) return;
 
     for(int i = 0; i < 8; i++)
     {
